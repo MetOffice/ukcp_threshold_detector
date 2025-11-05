@@ -1,0 +1,23 @@
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Temporary or generated data
+*.nc
+*.npz
+*.npy
+*.csv
+*.log
+
+# Figures and plots
+*.png
+*.jpg
+*.pdf
+
+# Local environment files
+.venv/
+env/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
