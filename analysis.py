@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import glob
 import matplotlib.pyplot as plt
 from pyproj import Transformer
 import cartopy.crs as ccrs
@@ -21,13 +22,14 @@ Instances of the class are created as follows:
 Inputs:
        var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr'
        threshold: threshold value
-       ens (optional): an integer indicating the ensemble member (default = 1)
+       ens (optional): an integer indicating the ensemble member (default = 1), or a list
+                       of the members to be analysed
        method (optional): threshold crossing method - can be 'above' (default) or 'below' 
 
 Attributes:
        .var: input variable
        .threshold: threshold value
-       .ens: ensemble member
+       .ens: ensemble member(s)
        .method: threshold crossing method
        .indata: directory where the input UKCP18 files (netcdf - daily data) are stored
                 NOTE: the directory should only contain files for one variable and ensemble member
@@ -50,19 +52,24 @@ class ThresholdDetector:
         self.ens = ens
         self.method = method
 
-        # Find the data folder for the requested detection
-        if ens < 10:
-            self.indata = inputs[f'{var}_0{ens}']
-        else:
-            self.indata = inputs[f'{var}_{ens}']
+        # Find the data folder(s) for the requested detection
+        # and keep the paths in attribute self.indata
+        if isinstance(ens, list):  # multiple ensemble members
+            self.indata = []
+            for iens in ens:
+                if iens < 10:
+                    self.indata.append(inputs[f'{var}_0{iens}'])
+                else:
+                    self.indata.append(inputs[f'{var}_{iens}'])
+        else:                      # single ensemble member
+            if ens < 10:
+                self.indata = inputs[f'{var}_0{ens}']
+            else:
+                self.indata = inputs[f'{var}_{ens}']
 
         # Check in input variable is correct
         if var not in ['tasmax', 'tasmin', 'tas', 'pr']:
             raise ValueError(f'Invalid variable name: {var}.')
-
-        # Check if input ensemble member variable is an integer
-        if not isinstance(ens, int):
-            raise ValueError(f'Ensemble member {ens} is not an integer')
 
         # Check if input method is correct
         if method not in ['above', 'below']:
@@ -96,21 +103,57 @@ class ThresholdDetector:
 
     def detect(self, output_file = None):
 
-        # Read input files
-        data = xr.open_mfdataset(f'{self.indata}*.nc', combine="by_coords")
-
-        # Omit first and last years that don't include all the days
-        y1 = data.time.min().dt.year.item(0)+1
-        y2 = data.time.max().dt.year.item(0)-1
-        data = data.sel(time = slice(str(y1), str(y2)))
-
-        # Compute threshold crossings in each year
-        if self.method == 'above':
-            var_select = data[self.var] > self.threshold
+        # Make a list with the input data path(s)
+        if isinstance(self.indata, str):
+            indir = [self.indata]  # single ensemble member
         else:
-            var_select = data[self.var] < self.threshold
-        var_counts = var_select.groupby('time.year').sum(dim='time')
+            indir = self.indata    # multiple members
 
+        # List to store exceedance fields
+        var_counts = []
+
+        # Analyse ensemble member(s)
+        for imember in indir:
+            print('Processing data in ' + imember)
+
+            # Find all files and sort by the first timestamp in each file
+            files = glob.glob(f'{imember}*.nc')
+            file_times = []
+            for f in files:
+                ds = xr.open_dataset(f, decode_times=True)
+                file_times.append((f, ds.time.min().item()))
+                ds.close()
+            sorted_files = [f for f, t in sorted(file_times, key=lambda x: x[1])]
+
+            # Read file-by-file for each member and build timeseries
+            parts = []
+            for f in sorted_files:
+                data = xr.open_dataset(f, decode_times=True)
+                parts.append(data[self.var])
+                data.close()
+
+            # Concatenate files for this member along time
+            member_data = xr.concat(parts, dim='time')
+
+            # Remove first and last years that don't include all the days
+            y1 = member_data.time.min().dt.year.item(0)+1
+            y2 = member_data.time.max().dt.year.item(0)-1
+            member_data = member_data.sel(time=slice(str(y1), str(y2)))
+
+            # Compute threshold crossings
+            if self.method == 'above':
+                var_select = member_data > self.threshold
+            else:
+                var_select = member_data < self.threshold
+            var_counts_member = var_select.groupby('time.year').sum(dim='time')
+
+            # Append annual crossings for this ensemble member
+            var_counts.append(var_counts_member)
+
+        # Combine DataArrays from all ensemble members
+        var_counts = xr.concat(var_counts, dim='ensemble_member', coords='minimal')
+
+        
         # Save to netcdf if output_file is given 
         if output_file is not None:
             var_counts.to_netcdf(output_file)
@@ -137,7 +180,7 @@ class ThresholdDetector:
 
     Inputs:
            self
-           var_counts: DataArray with threshold crossings (created by method detections)
+           var_counts: DataArray with threshold crossings (created by method detect)
            y1, y2: the first and last years of the selected period
            output_file(optional): name of a png file to save the plot
 
@@ -152,7 +195,13 @@ class ThresholdDetector:
             raise ValueError('Incorrect period: y2 must be >= y1')
 
         # Select period and compute temporal mean
-        varmean = var_counts.sel(year = slice(str(y1), str(y2))).mean(dim='year').load()
+        varmean = var_counts.sel(year = slice(str(y1), str(y2))).mean(dim='year')
+
+        # If many ensemble members, plot the ensemble mean
+        if isinstance(self.ens, list):
+            varmean = varmean.mean(dim='ensemble_member')
+        else:
+            varmean = varmean[0,:]
 
         # Plot
         plt.ion()
@@ -161,8 +210,8 @@ class ThresholdDetector:
         ax = plt.subplot2grid((1,1), (0,0), projection=ccrs.epsg(27700))
         plt.pcolormesh(varmean.projection_x_coordinate,
                        varmean.projection_y_coordinate,
-                       varmean.data[0,:,:], cmap=mycmap,
-                       vmin=0, vmax=varmean.max())
+                       varmean.data, cmap=mycmap,
+                       vmin=0, vmax=varmean.quantile(0.98))
         ax.coastlines()
         ax.set_title(f'{y1} - {y2} / Threshold = {self.threshold}')
         plt.colorbar(orientation='horizontal', label='Threshold Crossings / Year', fraction=0.03, pad=0.03)
@@ -192,7 +241,7 @@ class ThresholdDetector:
 
     Inputs:
            self
-           var_counts: DataArray with threshold crossings (created by method detections)
+           var_counts: DataArray with threshold crossings (created by method detect)
            mylon, mylat (optional): 2-dimensional lists with the coordinates of an area to extract.
                                     If not given, the mean is computed over the entire area
            output_file(optional): name of a png file to save the plot
@@ -211,13 +260,21 @@ class ThresholdDetector:
             var_counts_myarea = var_counts.copy()
 
         # Compute the spatial mean
-        varmean = make_spatial_mean(var_counts_myarea[0, :])
+        varmean = []
+        if isinstance(self.ens, list):
+            for iens in range(len(self.ens)):
+                varmean.append(make_spatial_mean(var_counts_myarea[iens, :]))
+        else:
+            varmean.append(make_spatial_mean(var_counts_myarea[0, :]))
 
         # Plot
         plt.ion()
         fig = plt.figure()
         ax = plt.subplot2grid((1,1), (0,0))
-        ax.plot(varmean.year, varmean)
+        for iens in range(len(varmean)):
+            ax.plot(varmean[iens].year, varmean[iens], color='darkgrey')
+        ensemble_mean = xr.concat(varmean, dim='ensemble_member').mean(dim='ensemble_member')
+        ax.plot(varmean[iens].year, ensemble_mean, linewidth=2, color='red')
         ax.set_title(f'Spatial Mean Timeseries / Var: {self.var} / Threshold = {self.threshold}')
         ax.set_xlabel('Year')
         ax.set_ylabel('No of Crossings Per Year')
