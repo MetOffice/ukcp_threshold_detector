@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 import glob
 import matplotlib.pyplot as plt
-from pyproj import Transformer
+from pyproj import CRS, Transformer
 import cartopy.crs as ccrs
 from analysis_utils import make_color_map, make_spatial_mean
 from input_datapaths import inputs
@@ -22,8 +22,7 @@ Instances of the class are created as follows:
 Inputs:
        var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr'
        threshold: threshold value
-       ens (optional): an integer indicating the ensemble member (default = 1), or a list
-                       of the members to be analysed
+       ens (optional): an integer indicating the ensemble member (default = 1)
        method (optional): threshold crossing method - can be 'above' (default) or 'below' 
 
 Attributes:
@@ -52,20 +51,12 @@ class ThresholdDetector:
         self.ens = ens
         self.method = method
 
-        # Find the data folder(s) for the requested detection
+        # Find the data folder for the requested detection
         # and keep the paths in attribute self.indata
-        if isinstance(ens, list):  # multiple ensemble members
-            self.indata = []
-            for iens in ens:
-                if iens < 10:
-                    self.indata.append(inputs[f'{var}_0{iens}'])
-                else:
-                    self.indata.append(inputs[f'{var}_{iens}'])
-        else:                      # single ensemble member
-            if ens < 10:
-                self.indata = inputs[f'{var}_0{ens}']
-            else:
-                self.indata = inputs[f'{var}_{ens}']
+        if ens < 10:
+            self.indata = inputs[f'{var}_0{ens}']
+        else:
+            self.indata = inputs[f'{var}_{ens}']
 
         # Check in input variable is correct
         if var not in ['tasmax', 'tasmin', 'tas', 'pr']:
@@ -89,78 +80,108 @@ class ThresholdDetector:
     ---------
 
     * output_array = my_detection.detect()
+    * output_array = my_detection.detect(select_years = [y1, y2, ..., yn])
     * output_array = my_detection.detect(output_file = 'threshold_crossings.nc')
 
     my_detection: an instance of the class ThresholdDetector
 
     Inputs:
            self
+           select_years (optional): a list of years to analyse. This is useful
+                                    for high-res data, where analysing smaller 
+                                    segements (rather than all available years)
+                                    helps avoid running out of memory
            output_file(optional): name of a netcdf file to save the output   
     Outputs:
            output_array: a DataArray with the threshold exceedances
 
     '''
 
-    def detect(self, output_file = None):
+    def detect(self, select_years = None, output_file = None):
 
-        # Make a list with the input data path(s)
-        if isinstance(self.indata, str):
-            indir = [self.indata]  # single ensemble member
+        print("Processing data in " + self.indata)
+
+        # -------------------------------------------------------------------
+        # List files and determine which years each file contains
+        # -------------------------------------------------------------------
+        files = sorted(glob.glob(f"{self.indata}*.nc"))
+        file_years = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years.values()]
+        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        first_year = min(all_start_years)
+        last_year  = max(all_end_years)
+
+        # Select years to analyse (default: all available years)
+        if select_years is not None:
+            if not isinstance(select_years, list):
+                raise TypeError("Invalid input: select_years must be a list")
         else:
-            indir = self.indata    # multiple members
+            select_years = range(first_year, last_year+1)    
+        
+        # -------------------------------------------------------------------
+        # Loop over years, load only the slices needed
+        # -------------------------------------------------------------------
+        annual_results = []
 
-        # List to store exceedance fields
-        var_counts = []
+        for year in select_years:
+            print(f"  Processing year: {year}")
 
-        # Analyse ensemble member(s)
-        for imember in indir:
-            print('Processing data in ' + imember)
+            # Identify files that contain this year
+            relevant_files = [
+                f for f, (y0, y1) in file_years.items()
+                if (y0 <= year <= y1) ]
 
-            # Find all files and sort by the first timestamp in each file
-            files = glob.glob(f'{imember}*.nc')
-            file_times = []
-            for f in files:
-                ds = xr.open_dataset(f, decode_times=True)
-                file_times.append((f, ds.time.min().item()))
-                ds.close()
-            sorted_files = [f for f, t in sorted(file_times, key=lambda x: x[1])]
-
-            # Read file-by-file for each member and build timeseries
+            # Load only the time slices for this year
             parts = []
-            for f in sorted_files:
+            for f in relevant_files:
                 data = xr.open_dataset(f, decode_times=True)
-                parts.append(data[self.var])
+                data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                parts.append(data_year)
                 data.close()
 
-            # Concatenate files for this member along time
-            member_data = xr.concat(parts, dim='time')
+            # Combine the parts (1 or 2 files depending on split years)
+            year_data = xr.concat(parts, dim="time")
 
-            # Remove first and last years that don't include all the days
-            y1 = member_data.time.min().dt.year.item(0)+1
-            y2 = member_data.time.max().dt.year.item(0)-1
-            member_data = member_data.sel(time=slice(str(y1), str(y2)))
-
-            # Compute threshold crossings
-            if self.method == 'above':
-                var_select = member_data > self.threshold
+            # If there are not enough days in this year, then skip it
+            if year_data.sizes['time'] < 360:
+                continue
+            
+            # ---------------------------------------------------------------
+            # Compute annual exceedances
+            # ---------------------------------------------------------------
+            if self.method == "above":
+                exceed = (year_data > self.threshold).sum(dim="time")
             else:
-                var_select = member_data < self.threshold
-            var_counts_member = var_select.groupby('time.year').sum(dim='time')
+                exceed = (year_data < self.threshold).sum(dim="time")
 
-            # Append annual crossings for this ensemble member
-            var_counts.append(var_counts_member)
+            # Add the year coordinate properly
+            exceed = exceed.assign_coords(year=year).expand_dims("year")
 
-        # Combine DataArrays from all ensemble members
-        var_counts = xr.concat(var_counts, dim='ensemble_member', coords='minimal')
+            annual_results.append(exceed)
 
-        
-        # Save to netcdf if output_file is given 
+        # -------------------------------------------------------------------
+        # Concatenate all years into final DataArray
+        # -------------------------------------------------------------------
+        var_counts = xr.concat(annual_results, dim="year")
+
+        # Keep original attributes (use the attributes from the last loaded year data)
+        var_counts.attrs.update(year_data.attrs)
+
+        # Save to netCDF if requested
         if output_file is not None:
             var_counts.to_netcdf(output_file)
 
         return var_counts
 
-    
+
     '''
     #############################
     # Method plot_temporal_mean #
@@ -197,21 +218,29 @@ class ThresholdDetector:
         # Select period and compute temporal mean
         varmean = var_counts.sel(year = slice(str(y1), str(y2))).mean(dim='year')
 
-        # If many ensemble members, plot the ensemble mean
-        if isinstance(self.ens, list):
-            varmean = varmean.mean(dim='ensemble_member')
-        else:
-            varmean = varmean[0,:]
+        # If there is an 'ensemble_member' coord, then select it
+        if 'ensemble_member' in varmean.coords:
+            varmean = varmean['ensemble_member' == self.ens]
 
         # Plot
         plt.ion()
         mycmap = make_color_map(361)
         fig = plt.figure()
         ax = plt.subplot2grid((1,1), (0,0), projection=ccrs.epsg(27700))
-        plt.pcolormesh(varmean.projection_x_coordinate,
-                       varmean.projection_y_coordinate,
-                       varmean.data, cmap=mycmap,
-                       vmin=0, vmax=varmean.quantile(0.98))
+        if "projection_x_coordinate" in var_counts.coords:
+            plt.pcolormesh(varmean.projection_x_coordinate,
+                           varmean.projection_y_coordinate,
+                           varmean.data, cmap=mycmap,
+                           vmin=0, vmax=varmean.quantile(0.98))
+        else:
+            pole_lat = 37.5
+            pole_lon = 177.5
+            rpole = ccrs.RotatedPole(pole_longitude=float(pole_lon),
+                                     pole_latitude=float(pole_lat))
+            plt.pcolormesh(varmean.grid_longitude,
+                        varmean.grid_latitude,
+                        varmean.data, transform=rpole, cmap=mycmap,
+                        vmin=0, vmax=varmean.quantile(0.98))
         ax.coastlines()
         ax.set_title(f'{y1} - {y2} / Threshold = {self.threshold}')
         plt.colorbar(orientation='horizontal', label='Threshold Crossings / Year', fraction=0.03, pad=0.03)
@@ -252,29 +281,54 @@ class ThresholdDetector:
 
         # Extract area, if needed
         if (mylon is not None) and (mylat is not None):
-            transformer = Transformer.from_crs('EPSG:4326', 'EPSG:27700', always_xy=True)
-            x, y = transformer.transform(mylon, mylat)
-            var_counts_myarea = var_counts.sel(projection_x_coordinate = slice(x[0], x[1]),
-                                               projection_y_coordinate = slice(y[0], y[1])) 
+            if "projection_x_coordinate" in var_counts.coords:
+                transformer = Transformer.from_crs('EPSG:4326', 'EPSG:27700', always_xy=True)
+                x, y = transformer.transform(mylon, mylat)
+                var_counts_myarea = var_counts.sel(projection_x_coordinate = slice(x[0], x[1]),
+                                                   projection_y_coordinate = slice(y[0], y[1])) 
+            else:
+                # Rotated pole lon/lat
+                pole_lat = 37.5
+                pole_lon = 177.5
+                rot = ccrs.RotatedPole(pole_latitude=pole_lat, pole_longitude=pole_lon)
+                geo = ccrs.PlateCarree()
+                rot_crs = CRS.from_wkt(rot.to_wkt())
+                geo_crs = CRS.from_wkt(geo.to_wkt())
+                transformer = Transformer.from_crs(geo_crs, rot_crs, always_xy=True)               
+                # Convert lon/lat → rotated coords
+                x0, y0 = transformer.transform(mylon[0], mylat[0])
+                x1, y1 = transformer.transform(mylon[1], mylat[1])
+                # Align to dataset coordinate space
+                grid_min = float(var_counts.grid_longitude.min())
+                grid_max = float(var_counts.grid_longitude.max())
+                def align_rotlon(x, gmin=grid_min):
+                    while x < gmin:
+                        x += 360
+                        return x
+                x0 = align_rotlon(x0)
+                x1 = align_rotlon(x1)
+                # Handle seam crossing
+                if x0 <= x1:
+                    var_counts_myarea = var_counts.sel(grid_longitude=slice(x0, x1),
+                                                       grid_latitude=slice(y0, y1))
+                else:
+                # x0 > x1 → crossing the 360→0 seam
+                    part1 = var_counts.sel(grid_longitude=slice(x0, grid_max),
+                                           grid_latitude=slice(y0, y1))
+                    part2 = var_counts.sel(grid_longitude=slice(grid_min, x1),
+                                           grid_latitude=slice(y0, y1))
+                    var_counts_myarea = xr.concat([part1, part2], dim="grid_longitude")
         else:
             var_counts_myarea = var_counts.copy()
-
+            
         # Compute the spatial mean
-        varmean = []
-        if isinstance(self.ens, list):
-            for iens in range(len(self.ens)):
-                varmean.append(make_spatial_mean(var_counts_myarea[iens, :]))
-        else:
-            varmean.append(make_spatial_mean(var_counts_myarea[0, :]))
+        varmean = make_spatial_mean(var_counts_myarea.sel(ensemble_member = self.ens))
 
         # Plot
         plt.ion()
         fig = plt.figure()
         ax = plt.subplot2grid((1,1), (0,0))
-        for iens in range(len(varmean)):
-            ax.plot(varmean[iens].year, varmean[iens], color='darkgrey')
-        ensemble_mean = xr.concat(varmean, dim='ensemble_member').mean(dim='ensemble_member')
-        ax.plot(varmean[iens].year, ensemble_mean, linewidth=2, color='red')
+        ax.plot(varmean.year, varmean, color='black')
         ax.set_title(f'Spatial Mean Timeseries / Var: {self.var} / Threshold = {self.threshold}')
         ax.set_xlabel('Year')
         ax.set_ylabel('No of Crossings Per Year')
