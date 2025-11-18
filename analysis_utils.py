@@ -43,14 +43,18 @@ Example:
 fldm = make_spatial_mean(data)
 
 Input:
-data: xarray data with coordinates defined as
-      data.projection_x_coordinate
-      data.projection_y_coordinate
+data: xarray data with coordinates defined either 
+      as (e.g. 12 km UKCP18 data):
+         data.projection_x_coordinate
+         data.projection_y_coordinate
+      or (e.g. 2.2 km UKCP18 data):
+         data.grid_longitude
+         data.grid_longitude
 
 Output:
 fldm: array with weigthed mean values
 
-*NOTE: Data must be a single variable with shape [time, x, y]
+*NOTE: Data must be a single variable with coords [time, x, y]
 
 '''
 
@@ -60,27 +64,40 @@ def make_spatial_mean(data):
     import numpy as np
     import pyproj
 
-    # UKCP18 12km projection
-    tm_proj = pyproj.CRS.from_epsg(27700)  # OSGB36 / British National Grid
-    wgs84 = pyproj.CRS.from_epsg(4326)     # lat/lon
+    # Detect the grid coordinate names
+    if "projection_x_coordinate" in data.coords:
+        x = data.projection_x_coordinate
+        y = data.projection_y_coordinate
+        # Input CRS
+        crs_native = pyproj.CRS.from_epsg(27700)
+    else:
+        # High-res 2.2km rotated grid
+        x = data.grid_longitude
+        y = data.grid_latitude
+        # Rotated pole lon/lat
+        pole_lat = 37.5
+        pole_lon = 177.5
+        # Input CRS
+        crs_native = pyproj.CRS.from_cf({
+            "grid_mapping_name": "rotated_latitude_longitude",
+            "grid_north_pole_latitude": pole_lat,
+            "grid_north_pole_longitude": pole_lon })
+
+    # Output CRS = WGS84 (lon/lat)
+    wgs84 = pyproj.CRS.from_epsg(4326)
 
     # Build transformer
-    transformer = pyproj.Transformer.from_crs(tm_proj, wgs84, always_xy=True)
-
-    # Convert grid coordinates to lon/lat
-    x = data.projection_x_coordinate
-    y = data.projection_y_coordinate
+    transformer = pyproj.Transformer.from_crs(crs_native, wgs84, always_xy=True)
 
     # If 2D arrays, flatten and then reshape
     lon2d, lat2d = np.meshgrid(x, y)  # shape (y, x)
     lon, lat = transformer.transform(lon2d, lat2d)
 
-    # Cosine weighting
+    # Cos(lat) weights
     weights = np.cos(np.deg2rad(lat))
-    weights = xr.DataArray(weights, dims=('projection_y_coordinate', 'projection_x_coordinate'))
+    weights = xr.DataArray(weights, dims=(y.dims[0], x.dims[0]))
 
-    # Multiply by weights and normalize
-    weighted_mean = (data * weights).sum(dim=['projection_y_coordinate','projection_x_coordinate']) / weights.sum()
-    weigthed_mean = weighted_mean.compute()
+    # Weighted mean
+    wmean = (data * weights).sum(dim=[y.dims[0], x.dims[0]]) / weights.sum()
 
-    return weighted_mean
+    return wmean
