@@ -17,12 +17,13 @@ performed and provides methods for computing the threshold crossings
 and producing simple plots of the results
 
 Instances of the class are created as follows:
-       my_detection = ThresholdDetector(var, threshold, ens=ens, method=method)
+       my_detection = ThresholdDetector(var, threshold, ens=ens, obs=False, method=method)
 
 Inputs:
        var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr'
        threshold: threshold value
        ens (optional): an integer indicating the ensemble member (default = 1)
+       obs(optional): True if analysing HadUK-Grid observations (default = False)
        method (optional): threshold crossing method - can be 'above' (default) or 'below' 
 
 Attributes:
@@ -31,7 +32,8 @@ Attributes:
        .ens: ensemble member(s)
        .method: threshold crossing method
        .indata: directory where the input UKCP18 files (netcdf - daily data) are stored
-                NOTE: the directory should only contain files for one variable and ensemble member
+                NOTE 1: the directory should only contain files for one variable and ensemble member
+                NOTE 2: if obs = True then this is the directory with the HadUK-Grid data
 
 Methods(details and examples of use are given at the header of each method):
        .detect: creates a DataArray of threshold crossings
@@ -43,20 +45,26 @@ Methods(details and examples of use are given at the header of each method):
 class ThresholdDetector:
 
     # Initialise the class
-    def __init__(self, var, threshold, ens=1, method='above'):
+    def __init__(self, var, threshold, ens=1, obs=False, method='above'):
 
         # Create attributes that hold general information
-        self.var = var
         self.threshold = threshold
         self.ens = ens
         self.method = method
-
+        if obs and var == 'pr':
+            self.var = 'rainfall'
+        else:
+            self.var = var
+        
         # Find the data folder for the requested detection
         # and keep the paths in attribute self.indata
-        if ens < 10:
-            self.indata = inputs[f'{var}_0{ens}']
-        else:
-            self.indata = inputs[f'{var}_{ens}']
+        if obs:
+            self.indata = inputs[f'{var}_obs']
+        else:    
+            if ens < 10:
+                self.indata = inputs[f'{var}_0{ens}']
+            else:
+                self.indata = inputs[f'{var}_{ens}']
 
         # Check in input variable is correct
         if var not in ['tasmax', 'tasmin', 'tas', 'pr']:
@@ -161,6 +169,9 @@ class ThresholdDetector:
                 exceed = (year_data > self.threshold).sum(dim="time")
             else:
                 exceed = (year_data < self.threshold).sum(dim="time")
+
+            # Mask missing points
+            exceed = exceed.where(year_data.notnull().all(dim="time"))
 
             # Add the year coordinate properly
             exceed = exceed.assign_coords(year=year).expand_dims("year")
@@ -322,8 +333,11 @@ class ThresholdDetector:
             var_counts_myarea = var_counts.copy()
             
         # Compute the spatial mean
-        varmean = make_spatial_mean(var_counts_myarea.sel(ensemble_member = self.ens))
-
+        if 'ensemble_member' in var_counts_myarea.dims:
+            varmean = make_spatial_mean(var_counts_myarea.sel(ensemble_member = self.ens))
+        else:
+            varmean = make_spatial_mean(var_counts_myarea)
+            
         # Plot
         plt.ion()
         fig = plt.figure()

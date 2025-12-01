@@ -1,5 +1,9 @@
 # Paths with UKCP18 daily data for each ensemble member
 inputs = {
+    'tasmax_obs' : '/data/users/nikos.christidis/haduk_grid/12km/tasmax/',
+    'tasmin_obs' : '/data/users/nikos.christidis/haduk_grid/12km/tasmin/',
+    'pr_obs'     : '/data/users/nikos.christidis/haduk_grid/12km/rainfall/',
+
     'tasmax_01' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/01/',
     'tasmin_01' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/01/',
     'tas_01'    : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tas/01/',
