@@ -97,7 +97,12 @@ def make_spatial_mean(data):
     weights = np.cos(np.deg2rad(lat))
     weights = xr.DataArray(weights, dims=(y.dims[0], x.dims[0]))
 
+    #  Only keep weights where data is valid
+    valid = xr.where(np.isnan(data), np.nan, 1)
+    weights_valid = weights * valid
+ 
     # Weighted mean
-    wmean = (data * weights).sum(dim=[y.dims[0], x.dims[0]]) / weights.sum()
+    wmean = (data * weights_valid).sum(dim=[y.dims[0], x.dims[0]]) / \
+            weights_valid.sum(dim=[y.dims[0], x.dims[0]])
 
     return wmean
