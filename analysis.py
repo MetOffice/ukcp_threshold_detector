@@ -80,8 +80,8 @@ class ThresholdDetector:
     # Method detect #
     #################
 
-    Method detect creates an xarray DataArray of threshold crossings over 
-    ensemble member, time, latitude, and longitude
+    Method detect creates an xarray DataArray of threshold crossings 
+    over time, latitude, and longitude
 
     ---------
     Examples:
@@ -89,6 +89,9 @@ class ThresholdDetector:
 
     * output_array = my_detection.detect()
     * output_array = my_detection.detect(select_years = [y1, y2, ..., yn])
+    * output_array = my_detection.detect(select_months = [m1, m2, ..., mn])
+    * output_array = my_detection.detect(year_from_dec = True)
+    * output_array = my_detection.detect(spells = True)
     * output_array = my_detection.detect(output_file = 'threshold_crossings.nc')
 
     my_detection: an instance of the class ThresholdDetector
@@ -99,13 +102,25 @@ class ThresholdDetector:
                                     for high-res data, where analysing smaller 
                                     segements (rather than all available years)
                                     helps avoid running out of memory
+           select_months (optional): a list of months to analyse. If None 
+                                    (default) then annual exceedances are computed.
+                                    If a list of months is provided, then the
+                                    exceedances are computed only for the selected
+                                    months. This is a useful option if, for example,
+                                    users want to calculate exceedances in a season
+           years_from_dec (optional): if True, then years run from Dec to Nov instead
+                                      of the default (Jan to Dec)
+           spells (optional): if True, then compute max spell lengths instead of 
+                              exccedance counts (i.e. max number of consecutive days
+                              when the threshold is crossed)  
            output_file(optional): name of a netcdf file to save the output   
     Outputs:
            output_array: a DataArray with the threshold exceedances
 
     '''
 
-    def detect(self, select_years = None, output_file = None):
+    def detect(self, select_years = None, select_months = None, years_from_dec = False,
+               spells = False, output_file = None):
 
         print("Processing data in " + self.indata)
 
@@ -131,8 +146,14 @@ class ThresholdDetector:
         if select_years is not None:
             if not isinstance(select_years, list):
                 raise TypeError("Invalid input: select_years must be a list")
+            if years_from_dec:
+                # Start from December of the previous year
+                select_years = [iyr-1 for iyr in select_years]
         else:
-            select_years = range(first_year, last_year+1)    
+            if years_from_dec:
+                select_years = range(first_year, last_year)
+            else:
+                select_years = range(first_year, last_year+1)
         
         # -------------------------------------------------------------------
         # Loop over years, load only the slices needed
@@ -143,41 +164,87 @@ class ThresholdDetector:
             print(f"  Processing year: {year}")
 
             # Identify files that contain this year
-            relevant_files = [
-                f for f, (y0, y1) in file_years.items()
-                if (y0 <= year <= y1) ]
+            if years_from_dec:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+            else:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) ]
 
             # Load only the time slices for this year
             parts = []
             for f in relevant_files:
                 data = xr.open_dataset(f, decode_times=True)
-                data_year = data[self.var].where(data.time.dt.year == year, drop=True)
-                parts.append(data_year)
+                if years_from_dec:
+                    data_year = data[self.var].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
                 data.close()
 
-            # Combine the parts (1 or 2 files depending on split years)
+            # Combine the parts
             year_data = xr.concat(parts, dim="time")
 
             # If there are not enough days in this year, then skip it
             if year_data.sizes['time'] < 360:
                 continue
-            
+
+            # If only some months are required (e.g. a season) then extract them
+            if select_months is not None:
+                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+
             # ---------------------------------------------------------------
             # Compute annual exceedances
             # ---------------------------------------------------------------
-            if self.method == "above":
-                exceed = (year_data > self.threshold).sum(dim="time")
+            if not spells:
+                if self.method == "above":
+                    exceed = (year_data > self.threshold).sum(dim="time")
+                else:
+                    exceed = (year_data < self.threshold).sum(dim="time")
+
+                # Mask missing points
+                exceed = exceed.where(year_data.notnull().all(dim="time"))
+
+                # Add the year coordinate properly
+                if years_from_dec:
+                    exceed = exceed.assign_coords(year=year+1).expand_dims("year")
+                else:
+                    exceed = exceed.assign_coords(year=year).expand_dims("year")
+
+                annual_results.append(exceed)
+
+            # ---------------------------------------------------------------
+            # Compute max length spells
+            # ---------------------------------------------------------------
             else:
-                exceed = (year_data < self.threshold).sum(dim="time")
+                if self.method == 'above':
+                    crossing = year_data > self.threshold
+                else:
+                    crossing = year_data < self.threshold
 
-            # Mask missing points
-            exceed = exceed.where(year_data.notnull().all(dim="time"))
+                # Count consecutive True values within each spell
+                spell_length = crossing.cumsum(dim="time") - \
+                crossing.cumsum(dim="time").where(~crossing).ffill(dim="time").fillna(0)
 
-            # Add the year coordinate properly
-            exceed = exceed.assign_coords(year=year).expand_dims("year")
+                #  Maximum spell length per grid point
+                max_spell_length = spell_length.max(dim="time")
 
-            annual_results.append(exceed)
+                # Mask missing points
+                max_spell_length = max_spell_length.where(year_data.notnull().all(dim="time"))
 
+                # Add the year coordinate properly
+                if years_from_dec:
+                    max_spell_length = max_spell_length.assign_coords(year=year+1).expand_dims("year")
+                else:
+                    max_spell_length = max_spell_length.assign_coords(year=year).expand_dims("year")
+
+                annual_results.append(max_spell_length)
+                
         # -------------------------------------------------------------------
         # Concatenate all years into final DataArray
         # -------------------------------------------------------------------
@@ -206,6 +273,7 @@ class ThresholdDetector:
     ---------
 
     * my_detection.plot_temporal_mean(var_counts, y1, y2)
+    * my_detection.plot_temporal_mean(var_counts, y1, y2, set_label = 'Max Spell Length')
     * my_detection.plot_temporal_mean(var_counts, y1, y2, output_file = 'plot.png')
 
     my_detection: an instance of the class ThresholdDetector
@@ -214,11 +282,12 @@ class ThresholdDetector:
            self
            var_counts: DataArray with threshold crossings (created by method detect)
            y1, y2: the first and last years of the selected period
+           set_label (optional): a customised label for the plot
            output_file(optional): name of a png file to save the plot
 
     '''
 
-    def plot_temporal_mean(self, var_counts, y1, y2, output_file = None):
+    def plot_temporal_mean(self, var_counts, y1, y2, set_label = 'Threshold Crossings', output_file = None):
 
         # Check if period is correctly specified
         if y1 < var_counts.year.min() or y2 > var_counts.year.max():
@@ -254,7 +323,7 @@ class ThresholdDetector:
                         vmin=0, vmax=varmean.quantile(0.98))
         ax.coastlines()
         ax.set_title(f'{y1} - {y2} / Threshold = {self.threshold}')
-        plt.colorbar(orientation='horizontal', label='Threshold Crossings / Year', fraction=0.03, pad=0.03)
+        plt.colorbar(orientation='horizontal', label=set_label, fraction=0.03, pad=0.03)
 
         # Save plot if output_file is given 
         if output_file is not None:
@@ -284,11 +353,13 @@ class ThresholdDetector:
            var_counts: DataArray with threshold crossings (created by method detect)
            mylon, mylat (optional): 2-dimensional lists with the coordinates of an area to extract.
                                     If not given, the mean is computed over the entire area
+           set_label (optional): a customised label for the plot
            output_file(optional): name of a png file to save the plot
 
     '''
 
-    def plot_spatial_mean(self, var_counts, mylon = None, mylat = None, output_file = None):
+    def plot_spatial_mean(self, var_counts, mylon = None, mylat = None,
+                          set_label = 'Threshold Crossings', output_file = None):
 
         # Extract area, if needed
         if (mylon is not None) and (mylat is not None):
@@ -345,7 +416,7 @@ class ThresholdDetector:
         ax.plot(varmean.year, varmean, color='black')
         ax.set_title(f'Spatial Mean Timeseries / Var: {self.var} / Threshold = {self.threshold}')
         ax.set_xlabel('Year')
-        ax.set_ylabel('No of Crossings Per Year')
+        ax.set_ylabel(set_label)
 
         # Save plot if output_file is given 
         if output_file is not None:
