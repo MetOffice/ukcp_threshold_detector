@@ -91,8 +91,7 @@ class ThresholdDetector:
     * output_array = my_detection.detect(select_years = [y1, y2, ..., yn])
     * output_array = my_detection.detect(select_months = [m1, m2, ..., mn])
     * output_array = my_detection.detect(year_from_dec = True)
-    * output_array = my_detection.detect(spells = True)
-    * output_array = my_detection.detect(output_file = 'threshold_crossings.nc')
+    * output_array = my_detection.detect(output_file = 'output_file.nc')
 
     my_detection: an instance of the class ThresholdDetector
 
@@ -110,17 +109,14 @@ class ThresholdDetector:
                                     users want to calculate exceedances in a season
            years_from_dec (optional): if True, then years run from Dec to Nov instead
                                       of the default (Jan to Dec)
-           spells (optional): if True, then compute max spell lengths instead of 
-                              exccedance counts (i.e. max number of consecutive days
-                              when the threshold is crossed)  
            output_file(optional): name of a netcdf file to save the output   
     Outputs:
            output_array: a DataArray with the threshold exceedances
 
     '''
 
-    def detect(self, select_years = None, select_months = None, years_from_dec = False,
-               spells = False, output_file = None):
+    def detect(self, select_years = None, select_months = None,
+               years_from_dec = False, output_file = None):
 
         print("Processing data in " + self.indata)
 
@@ -201,49 +197,21 @@ class ThresholdDetector:
             # ---------------------------------------------------------------
             # Compute annual exceedances
             # ---------------------------------------------------------------
-            if not spells:
-                if self.method == "above":
-                    exceed = (year_data > self.threshold).sum(dim="time")
-                else:
-                    exceed = (year_data < self.threshold).sum(dim="time")
-
-                # Mask missing points
-                exceed = exceed.where(year_data.notnull().all(dim="time"))
-
-                # Add the year coordinate properly
-                if years_from_dec:
-                    exceed = exceed.assign_coords(year=year+1).expand_dims("year")
-                else:
-                    exceed = exceed.assign_coords(year=year).expand_dims("year")
-
-                annual_results.append(exceed)
-
-            # ---------------------------------------------------------------
-            # Compute max length spells
-            # ---------------------------------------------------------------
+            if self.method == "above":
+                exceed = (year_data > self.threshold).sum(dim="time")
             else:
-                if self.method == 'above':
-                    crossing = year_data > self.threshold
-                else:
-                    crossing = year_data < self.threshold
+                exceed = (year_data < self.threshold).sum(dim="time")
 
-                # Count consecutive True values within each spell
-                spell_length = crossing.cumsum(dim="time") - \
-                crossing.cumsum(dim="time").where(~crossing).ffill(dim="time").fillna(0)
+            # Mask missing points
+            exceed = exceed.where(year_data.notnull().all(dim="time"))
 
-                #  Maximum spell length per grid point
-                max_spell_length = spell_length.max(dim="time")
+            # Add the year coordinate properly
+            if years_from_dec:
+                exceed = exceed.assign_coords(year=year+1).expand_dims("year")
+            else:
+                exceed = exceed.assign_coords(year=year).expand_dims("year")
 
-                # Mask missing points
-                max_spell_length = max_spell_length.where(year_data.notnull().all(dim="time"))
-
-                # Add the year coordinate properly
-                if years_from_dec:
-                    max_spell_length = max_spell_length.assign_coords(year=year+1).expand_dims("year")
-                else:
-                    max_spell_length = max_spell_length.assign_coords(year=year).expand_dims("year")
-
-                annual_results.append(max_spell_length)
+            annual_results.append(exceed)
                 
         # -------------------------------------------------------------------
         # Concatenate all years into final DataArray
@@ -259,6 +227,348 @@ class ThresholdDetector:
 
         return var_counts
 
+
+    '''
+    ###########################
+    # Method detect_maxlength #
+    ###########################
+
+    Method detect_maxlength creates an xarray DataArray of the maximum spell length
+    over time, latitude, and longitude. Spells are defined as consecutive days above
+    (or below) the threshold. The method computes the number of days associated with 
+    the spell in the year.
+
+    ---------
+    Examples:
+    ---------
+
+    * output_array = my_detection.detect_maxlength()
+    * output_array = my_detection.detect_maxlength(select_years = [y1, y2, ..., yn])
+    * output_array = my_detection.detect_maxlength(select_months = [m1, m2, ..., mn])
+    * output_array = my_detection.detect_maxlength(year_from_dec = True)
+    * output_array = my_detection.detect_maxlength(output_file = 'output_file.nc')
+
+    my_detection: an instance of the class ThresholdDetector
+
+    Inputs:
+           self
+           select_years (optional): a list of years to analyse. This is useful
+                                    for high-res data, where analysing smaller 
+                                    segements (rather than all available years)
+                                    helps avoid running out of memory
+           select_months (optional): a list of months to analyse. If None 
+                                    (default) then annual exceedances are computed.
+                                    If a list of months is provided, then the
+                                    exceedances are computed only for the selected
+                                    months. This is a useful option if, for example,
+                                    users want to calculate exceedances in a season
+           years_from_dec (optional): if True, then years run from Dec to Nov instead
+                                      of the default (Jan to Dec)
+           output_file(optional): name of a netcdf file to save the output   
+    Outputs:
+           output_array: a DataArray with the threshold exceedances
+
+    '''
+
+    def detect_maxlength(self, select_years = None, select_months = None,
+                         years_from_dec = False, output_file = None):
+
+        print("Processing data in " + self.indata)
+
+        # -------------------------------------------------------------------
+        # List files and determine which years each file contains
+        # -------------------------------------------------------------------
+        files = sorted(glob.glob(f"{self.indata}*.nc"))
+        file_years = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years.values()]
+        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        first_year = min(all_start_years)
+        last_year  = max(all_end_years)
+
+        # Select years to analyse (default: all available years)
+        if select_years is not None:
+            if not isinstance(select_years, list):
+                raise TypeError("Invalid input: select_years must be a list")
+            if years_from_dec:
+                # Start from December of the previous year
+                select_years = [iyr-1 for iyr in select_years]
+        else:
+            if years_from_dec:
+                select_years = range(first_year, last_year)
+            else:
+                select_years = range(first_year, last_year+1)
+        
+        # -------------------------------------------------------------------
+        # Loop over years, load only the slices needed
+        # -------------------------------------------------------------------
+        annual_results = []
+
+        for year in select_years:
+            print(f"  Processing year: {year}")
+
+            # Identify files that contain this year
+            if years_from_dec:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+            else:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) ]
+
+            # Load only the time slices for this year
+            parts = []
+            for f in relevant_files:
+                data = xr.open_dataset(f, decode_times=True)
+                if years_from_dec:
+                    data_year = data[self.var].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
+                data.close()
+
+            # Combine the parts
+            year_data = xr.concat(parts, dim="time")
+
+            # If there are not enough days in this year, then skip it
+            if year_data.sizes['time'] < 360:
+                continue
+
+            # If only some months are required (e.g. a season) then extract them
+            if select_months is not None:
+                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+
+            # ---------------------------------------------------------------
+            # Compute max length spells
+            # ---------------------------------------------------------------
+            if self.method == 'above':
+                crossing = year_data > self.threshold
+            else:
+                crossing = year_data < self.threshold
+
+            # Count consecutive True values within each spell
+            spell_length = crossing.cumsum(dim="time") - \
+            crossing.cumsum(dim="time").where(~crossing).ffill(dim="time").fillna(0)
+
+            #  Maximum spell length per grid point
+            max_spell_length = spell_length.max(dim="time")
+
+            # Mask missing points
+            max_spell_length = max_spell_length.where(year_data.notnull().all(dim="time"))
+
+            # Add the year coordinate properly
+            if years_from_dec:
+                max_spell_length = max_spell_length.assign_coords(year=year+1).expand_dims("year")
+            else:
+                max_spell_length = max_spell_length.assign_coords(year=year).expand_dims("year")
+
+            annual_results.append(max_spell_length)
+                
+        # -------------------------------------------------------------------
+        # Concatenate all years into final DataArray
+        # -------------------------------------------------------------------
+        var_counts = xr.concat(annual_results, dim="year")
+
+        # Keep original attributes (use the attributes from the last loaded year data)
+        var_counts.attrs.update(year_data.attrs)
+
+        # Save to netCDF if requested
+        if output_file is not None:
+            var_counts.to_netcdf(output_file)
+
+        return var_counts
+
+
+    '''
+    ##########################
+    # Method detect_clusters #
+    ##########################
+
+    Method detect_clusters creates an xarray DataArray of threshold-crossing events
+    over time, latitude, and longitude. An event is defined as one or more consecutive
+    days above (or below) the threshold. Events are considered separate only if there 
+    are at least X non-exceedance days (decluster_days) between them. Method 
+    detect_cluster counts how many such events occur in the year.
+
+    ---------
+    Examples:
+    ---------
+
+    * output_array = my_detection.detect_clusters(5) # decluster_days set to 5
+    * output_array = my_detection.detect_clusters(5, select_years = [y1, y2, ..., yn])
+    * output_array = my_detection.detect_clusters(5, select_months = [m1, m2, ..., mn])
+    * output_array = my_detection.detect_clusters(5, years_from_dec = True)
+    * output_array = my_detection.detect_clusters(5, output_file = 'output_file.nc')
+
+    my_detection: an instance of the class ThresholdDetector
+
+    Inputs:
+           self
+           decluster_days: minimum number of days without a threshold crossing
+                           required between events. If set to 1, all events are
+                           counted, even if only separated by 1 day.
+           select_years (optional): a list of years to analyse. This is useful
+                                    for high-res data, where analysing smaller 
+                                    segements (rather than all available years)
+                                    helps avoid running out of memory
+           select_months (optional): a list of months to analyse. If None 
+                                    (default) then annual exceedances are computed.
+                                    If a list of months is provided, then the
+                                    exceedances are computed only for the selected
+                                    months. This is a useful option if, for example,
+                                    users want to calculate exceedances in a season
+           years_from_dec (optional): if True, then years run from Dec to Nov instead
+                                      of the default (Jan to Dec)
+           output_file(optional): name of a netcdf file to save the output   
+    Outputs:
+           output_array: a DataArray with the threshold exceedances
+
+    '''
+
+    def detect_clusters(self, decluster_days, select_years = None, select_months = None,
+                        years_from_dec = False, output_file = None):
+
+        # Check if decluster_days is correct (must be >= 1)
+        if decluster_days < 1:
+            raise ValueError(f'Invalid value for decluster_days: {decluster_days}. Must be >=1')
+        
+        print("Processing data in " + self.indata)
+
+        # -------------------------------------------------------------------
+        # List files and determine which years each file contains
+        # -------------------------------------------------------------------
+        files = sorted(glob.glob(f"{self.indata}*.nc"))
+        file_years = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years.values()]
+        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        first_year = min(all_start_years)
+        last_year  = max(all_end_years)
+
+        # Select years to analyse (default: all available years)
+        if select_years is not None:
+            if not isinstance(select_years, list):
+                raise TypeError("Invalid input: select_years must be a list")
+            if years_from_dec:
+                # Start from December of the previous year
+                select_years = [iyr-1 for iyr in select_years]
+        else:
+            if years_from_dec:
+                select_years = range(first_year, last_year)
+            else:
+                select_years = range(first_year, last_year+1)
+        
+        # -------------------------------------------------------------------
+        # Loop over years, load only the slices needed
+        # -------------------------------------------------------------------
+        annual_results = []
+
+        for year in select_years:
+            print(f"  Processing year: {year}")
+
+            # Identify files that contain this year
+            if years_from_dec:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+            else:
+                relevant_files = [
+                    f for f, (y0, y1) in file_years.items()
+                    if (y0 <= year <= y1) ]
+
+            # Load only the time slices for this year
+            parts = []
+            for f in relevant_files:
+                data = xr.open_dataset(f, decode_times=True)
+                if years_from_dec:
+                    data_year = data[self.var].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
+                data.close()
+
+            # Combine the parts
+            year_data = xr.concat(parts, dim="time")
+
+            # If there are not enough days in this year, then skip it
+            if year_data.sizes['time'] < 360:
+                continue
+
+            # If only some months are required (e.g. a season) then extract them
+            if select_months is not None:
+                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+
+            # ---------------------------------------------------------------
+            # Compute number of spells (separated by at least dectuster_days)
+            # ---------------------------------------------------------------
+
+            if self.method == "above":
+                crossing = year_data > self.threshold
+            else:
+                crossing = year_data < self.threshold
+
+            # Identify event starts (first day of each spell)
+            event_start = crossing & ~crossing.shift(time=1, fill_value=False)
+
+            # Count consecutive non-exceedance days since the last event
+            gap = (~crossing).cumsum(dim="time") - \
+                (~crossing).cumsum(dim="time").where(crossing).ffill(dim="time").fillna(0)
+
+            # Look at the gap before the event starts
+            gap_before = gap.shift(time=1, fill_value=decluster_days)
+
+            # Keep event starts only if the quiet gap is long enough
+            new_event = event_start & (gap_before >= decluster_days)
+            
+            # Count clustered events
+            exceed = new_event.sum(dim="time")
+
+            # Mask missing points
+            exceed = exceed.where(year_data.notnull().all(dim="time"))
+
+            # Add the year coordinate properly
+            if years_from_dec:
+                exceed = exceed.assign_coords(year=year+1).expand_dims("year")
+            else:
+                exceed = exceed.assign_coords(year=year).expand_dims("year")
+
+            annual_results.append(exceed)
+
+        # -------------------------------------------------------------------
+        # Concatenate all years into final DataArray
+        # -------------------------------------------------------------------
+        var_counts = xr.concat(annual_results, dim="year")
+
+        # Keep original attributes (use the attributes from the last loaded year data)
+        var_counts.attrs.update(year_data.attrs)
+
+        # Save to netCDF if requested
+        if output_file is not None:
+            var_counts.to_netcdf(output_file)
+
+        return var_counts
+   
 
     '''
     #############################
