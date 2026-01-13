@@ -4,7 +4,7 @@ import glob
 import matplotlib.pyplot as plt
 from pyproj import CRS, Transformer
 import cartopy.crs as ccrs
-from analysis_utils import make_color_map, make_spatial_mean
+from analysis_utils import make_color_map, make_spatial_mean, cumulative_runlength
 from input_datapaths import inputs
 
 '''
@@ -391,33 +391,39 @@ class ThresholdDetector:
 
 
     '''
-    ##########################
-    # Method detect_clusters #
-    ##########################
+    ########################
+    # Method detect_spells #
+    ########################
 
-    Method detect_clusters creates an xarray DataArray of threshold-crossing events
-    over time, latitude, and longitude. An event is defined as one or more consecutive
-    days above (or below) the threshold. Events are considered separate only if there 
+    Method detect_spells creates an xarray DataArray of threshold-crossing spells
+    over time, latitude, and longitude. Spells are defined as consecutive days
+    above (or below) the threshold. Spells of a minimumn length (min_length) may
+    be specified. Also, spells may be considered separate only if there 
     are at least X non-exceedance days (decluster_days) between them. Method 
-    detect_cluster counts how many such events occur in the year.
+    detect_spells counts how many such events occur in the year.
 
     ---------
     Examples:
     ---------
 
-    * output_array = my_detection.detect_clusters(5) # decluster_days set to 5
-    * output_array = my_detection.detect_clusters(5, select_years = [y1, y2, ..., yn])
-    * output_array = my_detection.detect_clusters(5, select_months = [m1, m2, ..., mn])
-    * output_array = my_detection.detect_clusters(5, years_from_dec = True)
-    * output_array = my_detection.detect_clusters(5, output_file = 'output_file.nc')
+    * output_array = my_detection.detect_spells()                   # count all spells of any length
+    * output_array = my_detection.detect_spells(min_length = 5)     # only count spells >= 5 days
+    * output_array = my_detection.detect_spells(decluster_days = 3) # spells separated by at least 3 days
+    * output_array = my_detection.detect_spells(select_years = [y1, y2, ..., yn])
+    * output_array = my_detection.detect_spells(select_months = [m1, m2, ..., mn])
+    * output_array = my_detection.detect_spells(years_from_dec = True)
+    * output_array = my_detection.detect_spells(output_file = 'output_file.nc')
 
     my_detection: an instance of the class ThresholdDetector
 
     Inputs:
            self
-           decluster_days: minimum number of days without a threshold crossing
-                           required between events. If set to 1, all events are
-                           counted, even if only separated by 1 day.
+           min_length (optional) : if specified, only spells with at least min_length
+                                   days are counted 
+           decluster_days(optional): minimum number of days without a threshold 
+                                     crossing required between spells. If set 
+                                     to 1 (default), all spells are counted, even
+                                     if only separated by 1 day
            select_years (optional): a list of years to analyse. This is useful
                                     for high-res data, where analysing smaller 
                                     segements (rather than all available years)
@@ -436,8 +442,8 @@ class ThresholdDetector:
 
     '''
 
-    def detect_clusters(self, decluster_days, select_years = None, select_months = None,
-                        years_from_dec = False, output_file = None):
+    def detect_spells(self, min_length = False, decluster_days = 1, select_years = None,
+                      select_months = None, years_from_dec = False, output_file = None):
 
         # Check if decluster_days is correct (must be >= 1)
         if decluster_days < 1:
@@ -528,19 +534,35 @@ class ThresholdDetector:
             else:
                 crossing = year_data < self.threshold
 
+            # Apply minumum spell length, if required
+            if min_length:
+                crossing_int = crossing.astype(int)
+                # Apply run-length calculation along time dimension, preserving all other dims,
+                # using helper function cumulative_runlength
+                runlen = xr.apply_ufunc(
+                    cumulative_runlength,
+                    crossing_int,
+                    input_core_dims=[['time']],
+                    output_core_dims=[['time']],
+                    vectorize=True,
+                    dask='parallelized',
+                    output_dtypes=[crossing_int.dtype])
+                # Mask events shorter than min_length
+                crossing = crossing & (runlen >= min_length)
+
             # Identify event starts (first day of each spell)
             event_start = crossing & ~crossing.shift(time=1, fill_value=False)
 
-            # Count consecutive non-exceedance days since the last event
-            gap = (~crossing).cumsum(dim="time") - \
-                (~crossing).cumsum(dim="time").where(crossing).ffill(dim="time").fillna(0)
+            # Compute gap since last event
+            gap = (~crossing).cumsum(dim='time') - \
+                (~crossing).cumsum(dim='time').where(crossing).ffill(dim='time').fillna(0)
 
             # Look at the gap before the event starts
             gap_before = gap.shift(time=1, fill_value=decluster_days)
 
             # Keep event starts only if the quiet gap is long enough
             new_event = event_start & (gap_before >= decluster_days)
-            
+
             # Count clustered events
             exceed = new_event.sum(dim="time")
 

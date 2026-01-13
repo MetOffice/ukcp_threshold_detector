@@ -31,6 +31,51 @@ def make_color_map(nval):
 
 
 '''
+#######################################
+# Function cumulative_runlength       #
+#######################################
+
+Function cumulative_runlength computes the run length of consecutive
+threshold exceedances along the time dimension. The run length increases
+by one for each consecutive exceedance day and resets to zero when the
+threshold is not exceeded.
+
+This function is designed to be used with xarray.apply_ufunc, where the
+time dimension is passed as the leading dimension of the input array.
+
+Example:
+runlen = xr.apply_ufunc(
+    cumulative_runlength,
+    crossing_int,
+    input_core_dims=[['time']],
+    output_core_dims=[['time']],
+    vectorize=True,
+    dask='parallelized',
+    output_dtypes=[crossing_int.dtype])
+
+Input:
+arr: NumPy array with shape (time, ...), where values are 1 for
+     threshold exceedance and 0 otherwise
+
+Output:
+out: NumPy array of the same shape as arr, containing the run length
+     of consecutive exceedances at each time step
+'''
+
+def cumulative_runlength(arr):
+
+    import numpy as np
+
+    # arr is a NumPy array with shape (time, ...)
+    out = np.zeros_like(arr)
+    out[0] = arr[0]
+    for t in range(1, arr.shape[0]):
+        out[t] = arr[t] * (out[t-1] + 1)
+
+    return out
+
+
+'''
 ##############################
 # Function make_spatial_mean #
 ##############################
