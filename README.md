@@ -1,5 +1,9 @@
 ## ukcp_threshold_detector
 
+- [1. Introduction](#1-introduction)
+- [2. Code Structure](#2-code-structure)
+- [3. Examples](#3-examples)
+
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
@@ -91,8 +95,9 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 
 
 ***
-#### Example (basic use)
+### 3. Examples
 
+- Basic use
 ``` python
 # Import the Detector
 from analysis import ThresholdDetector
@@ -101,12 +106,71 @@ from analysis import ThresholdDetector
 mydetection = ThresholdDetector('tasmax', 27.)
 
 # Compute threshold crossings
-thresh_exceed = mydetection.detect()
+thresh_metric = mydetection.detect()
 
 # Plot a map of the mean exceedances in the 2070s
-mydetection.plot_temporal_mean(thresh_exceed, 2070, 2079)
+mydetection.plot_temporal_mean(thresh_metric, 2070, 2079)
 
 # Plot the timeseries of annual threshold exceedances averaged over the area of Wales
-mydetection.plot_spatial_mean(thresh_exceed, mylon=[-5.5, -2.5], mylat=[51.4, 53.5])
+mydetection.plot_spatial_mean(thresh_metric, mylon = [-5.5, -2.5], mylat = [51.4, 53.5])
+```
 
+- Creating an instance
+``` python
+# Example 1: Max temperature above 30.C
+mydetection = ThresholdDetector('tasmax', 30.)
+
+# Example 2: Min temperature below 0.C, ensemble member 8
+mydetection = ThresholdDetector('tasmin', 0., method = 'below', ens = 8)
+
+# Example 3: Max temperature above 27.C, computed using observations
+mydetection = ThresholdDetector('tasmax', 27., obs = True)
+```
+
+- Computing different detection metrics
+``` python
+# In the following examples an instance has been created for tasmax > 27.
+mydetection = ThresholdDetector('tasmax', 27.)
+
+# Example 1: Counts. Computes number of days when the threshold is exceeded.
+thresh_metric_1 = mydetection.detect()
+
+# Example 2: Spells. Computes number of spells in a year, i.e. consecutive days when the threshold is exceeded. In this case spells can be of any length (>= 1day).
+thresh_metric_2 = mydetection.detect_spells()
+
+# Example 3: Spells. Computes number of spells in a year, but only for spells >= 5 days.
+thresh_metric_3 = mydetection.detect_spells(min_length = 5)
+
+# Example 4: Spells. As example 3, but spells separated by 3 days or less are counted as a single event.
+thresh_metric_4 = mydetection.detect_spells(min_length = 5, decluster_days = 3)
+
+# Example 5: Max spell length. Computes the length of the longest spell of each year.
+thresh_metric_5 = mydetection.detect_maxlength()
+
+# ADDITIONAL FUNCTIONALITY
+# Basic detection
+thresh_metric = mydetection.detect()
+# Analyse only selected years
+thresh_metric = mydetection.detect(select_years = [2070, 2071, 2072, 2073, 2073])
+# Compute threshold-crossings only in summer months
+thresh_metric = mydetection.detect(select_months = [6, 7, 8])
+# Start years in December instead of January
+thresh_metric = mydetection.detect(years_from_dec = True)
+# Save output in a NetCDF file
+thresh_metric = mydetection.detect(output_file = 'thresh_metric.nc')
+```
+
+- Visualisation
+``` python
+# Plot map of the metric over period 2020-2029 and save into a png file
+mydetection.plot_temporal_mean(thresh_metric, 2020, 2029, output_file = 'plot.png')
+
+# Add a customised label
+mydetection.plot_temporal_mean(thresh_metric, 2020, 2029, set_label = 'Max Spell Length')
+
+# Plot timeseries of the metric value averaged over the entire region and save in file
+mydetection.plot_spatial_mean(thresh_metric, output_file = 'plot.png')
+
+# Plot timeseries of the metric value averaged over the London area
+mydetection.plot_spatial_mean(thresh_metric, mylon = [-0.6, 0.4], mylat = [51.2, 51.8])
 ```
