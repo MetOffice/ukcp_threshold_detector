@@ -1,5 +1,9 @@
 ## ukcp_threshold_detector
 
+- [1. Introduction](#1-introduction)
+- [2. Code Structure](#2-code-structure)
+- [3. Examples](#3-examples)
+
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
