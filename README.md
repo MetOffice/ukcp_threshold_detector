@@ -7,7 +7,7 @@
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
-The code processes **UKCP18 daily gridded data (default resolution 12 km)** to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas* and *pr*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
+The code processes **UKCP18 daily gridded data (default resolution 12 km)** to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, and *sfcWind*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
 - the **variable** of interest,
 - the **ensemble member**, and
 - the **threshold value** and **detection method** (*above* or *below*).
@@ -43,7 +43,7 @@ This is the basic building block of the tool and the starting point of all compu
   - Class Attributes (information created and stored in the instance when the class is called):
     - **var**: input variable
     - **threshold**: threshold value
-    - **ens**: ensemble member(s)
+    - **ens**: ensemble member
     - **method**: threshold crossing method
     - **indata**: directory where the input files (NetCDF - daily data) are stored
 
@@ -88,7 +88,8 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
 This script contains supporting functions used in the analysis, including:
 - **Function make_color_cmap**: a function that create a custom colour map used for map plotting.
 - **Function cumulative_runlength**: a function that computes the run length of consecutive threshold exceedances along the time dimension .
-- **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice. 
+- **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
+- **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
 
 #### input_datapaths.py
 This script defines the file paths for UKCP18 daily data for each ensemble member (and HadUKGrid-data, if required). Users should edit this file to provide the paths to their local data. 
@@ -174,3 +175,19 @@ mydetection.plot_spatial_mean(thresh_metric, output_file = 'plot.png')
 # Plot timeseries of the metric value averaged over the London area
 mydetection.plot_spatial_mean(thresh_metric, mylon = [-0.6, 0.4], mylat = [51.2, 51.8])
 ```
+
+- Metric on GWLs
+``` python
+# Import the detector and GWL functions
+from analysis import ThresholdDetector
+from analysis_utils import gwl_ukcp18
+
+# Create a simple threshold metric, as in the earlier basic use example,
+# for counting days with tasmax > 27.
+mydetection = ThresholdDetector('tasmax', 27.)
+thresh_metric = mydetection.detect()
+
+# Compute the metric for a GWL of 2 degrees and save it in a file
+thresh_metric_gwl = gwl_ukcp18(thresh_metric, ens = mydetection.ens, gwl=2.0, output_file = 'thresh_2deg_gwl.nc')
+
+
