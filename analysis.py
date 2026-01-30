@@ -20,7 +20,8 @@ Instances of the class are created as follows:
        my_detection = ThresholdDetector(var, threshold, ens=ens, obs=False, method=method)
 
 Inputs:
-       var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr'
+       var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr',
+                                           'uas', 'vas', 'sfcWind'
        threshold: threshold value
        ens (optional): an integer indicating the ensemble member (default = 1)
        obs(optional): True if analysing HadUK-Grid observations (default = False)
@@ -67,7 +68,7 @@ class ThresholdDetector:
                 self.indata = inputs[f'{var}_{ens}']
 
         # Check in input variable is correct
-        if var not in ['tasmax', 'tasmin', 'tas', 'pr']:
+        if var not in ['tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind']:
             raise ValueError(f'Invalid variable name: {var}.')
 
         # Check if input method is correct
@@ -218,8 +219,15 @@ class ThresholdDetector:
         # -------------------------------------------------------------------
         var_counts = xr.concat(annual_results, dim="year")
 
-        # Keep original attributes (use the attributes from the last loaded year data)
+        # Copy original attributes and update them
         var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update({
+            "standard_name": "theshold_crossings",
+            "long_name": "Threshold Detector Output",
+            "units": "number of days per year",
+            "description": "Threshold Detector Output",
+            "label_units": "number of days per year",
+            "plot_label": "Theshold Crossings" })
 
         # Save to netCDF if requested
         if output_file is not None:
@@ -380,8 +388,15 @@ class ThresholdDetector:
         # -------------------------------------------------------------------
         var_counts = xr.concat(annual_results, dim="year")
 
-        # Keep original attributes (use the attributes from the last loaded year data)
+        # Copy original attributes and update them
         var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update({
+            "standard_name": "max_spell_length",
+            "long_name": "Threshold Detector Output",
+            "units": "days",
+            "description": "Threshold Detector Output",
+            "label_units": "days",
+            "plot_label": "Max Spell Length" })
 
         # Save to netCDF if requested
         if output_file is not None:
@@ -582,8 +597,15 @@ class ThresholdDetector:
         # -------------------------------------------------------------------
         var_counts = xr.concat(annual_results, dim="year")
 
-        # Keep original attributes (use the attributes from the last loaded year data)
+        # Copy original attributes and update them
         var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update({
+            "standard_name": "spells_of_theshold_crossings",
+            "long_name": "Threshold Detector Output",
+            "units": "number of spells per year",
+            "description": "Threshold Detector Output",
+            "label_units": "number of spells per year",
+            "plot_label": "Spells of Theshold Crossings" })
 
         # Save to netCDF if requested
         if output_file is not None:
