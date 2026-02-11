@@ -11,6 +11,9 @@ inputs = {
     'uas_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/01/',
     'vas_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/01/',
     'sfcWind_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/01/',
+    'hurs_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/01/',
+    'huss_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/01/',
+    'prsn_01'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/01/',
 
     'tasmax_04' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/04/',
     'tasmin_04' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/04/',
@@ -19,6 +22,9 @@ inputs = {
     'uas_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/04/',
     'vas_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/04/',
     'sfcWind_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/04/',
+    'hurs_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/04/',
+    'huss_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/04/',
+    'prsn_04'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/04/',
 
     'tasmax_05' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/05/',
     'tasmin_05' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/05/',
@@ -27,6 +33,9 @@ inputs = {
     'uas_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/05/',
     'vas_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/05/',
     'sfcWind_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/05/',
+    'hurs_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/05/',
+    'huss_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/05/',
+    'prsn_05'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/05/',
 
     'tasmax_06' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/06/',
     'tasmin_06' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/06/',
@@ -35,6 +44,9 @@ inputs = {
     'uas_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/06/',
     'vas_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/06/',
     'sfcWind_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/06/',
+    'hurs_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/06/',
+    'huss_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/06/',
+    'prsn_06'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/06/',
 
     'tasmax_07' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/07/',
     'tasmin_07' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/07/',
@@ -43,6 +55,9 @@ inputs = {
     'uas_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/07/',
     'vas_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/07/',
     'sfcWind_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/07/',
+    'hurs_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/07/',
+    'huss_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/07/',
+    'prsn_07'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/07/',
 
     'tasmax_08' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/08/',
     'tasmin_08' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/08/',
@@ -51,6 +66,9 @@ inputs = {
     'uas_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/08/',
     'vas_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/08/',
     'sfcWind_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/08/',
+    'hurs_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/08/',
+    'huss_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/08/',
+    'prsn_08'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/08/',
 
     'tasmax_09' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/09/',
     'tasmin_09' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/09/',
@@ -59,6 +77,9 @@ inputs = {
     'uas_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/09/',
     'vas_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/09/',
     'sfcWind_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/09/',
+    'hurs_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/09/',
+    'huss_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/09/',
+    'prsn_09'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/09/',
 
     'tasmax_10' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/10/',
     'tasmin_10' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/10/',
@@ -67,6 +88,9 @@ inputs = {
     'uas_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/10/',
     'vas_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/10/',
     'sfcWind_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/10/',
+    'hurs_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/10/',
+    'huss_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/10/',
+    'prsn_10'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/10/',
 
     'tasmax_11' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/11/',
     'tasmin_11' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/11/',
@@ -75,6 +99,9 @@ inputs = {
     'uas_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/11/',
     'vas_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/11/',
     'sfcWind_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/11/',
+    'hurs_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/11/',
+    'huss_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/11/',
+    'prsn_11'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/11/',
 
     'tasmax_12' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/12/',
     'tasmin_12' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/12/',
@@ -83,6 +110,9 @@ inputs = {
     'uas_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/12/',
     'vas_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/12/',
     'sfcWind_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/12/',
+    'hurs_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/12/',
+    'huss_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/12/',
+    'prsn_12'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/12/',
 
     'tasmax_13' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/13/',
     'tasmin_13' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/13/',
@@ -91,6 +121,9 @@ inputs = {
     'uas_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/13/',
     'vas_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/13/',
     'sfcWind_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/13/',
+    'hurs_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/13/',
+    'huss_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/13/',
+    'prsn_13'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/13/',
 
     'tasmax_15' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/15/',
     'tasmin_15' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/15/',
@@ -99,6 +132,9 @@ inputs = {
     'uas_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/15/',
     'vas_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/15/',
     'sfcWind_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/15/',
+    'hurs_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/15/',
+    'huss_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/15/',
+    'prsn_15'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/15/',
 
     'tasmax_23' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/23/',
     'tasmin_23' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/23/',
@@ -107,6 +143,9 @@ inputs = {
     'uas_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/23/',
     'vas_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/23/',
     'sfcWind_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/23/',
+    'hurs_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/23/',
+    'huss_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/23/',
+    'prsn_23'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/23/',
 
     'tasmax_25' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/25/',
     'tasmin_25' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/25/',
@@ -115,6 +154,9 @@ inputs = {
     'uas_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/25/',
     'vas_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/25/',
     'sfcWind_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/25/',
+    'hurs_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/25/',
+    'huss_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/25/',
+    'prsn_25'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/25/',
 
     'tasmax_27' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/27/',
     'tasmin_27' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/27/',
@@ -123,6 +165,9 @@ inputs = {
     'uas_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/27/',
     'vas_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/27/',
     'sfcWind_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/27/',
+    'hurs_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/27/',
+    'huss_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/27/',
+    'prsn_27'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/27/',
 
     'tasmax_29' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmax/29/',
     'tasmin_29' : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/tasmin/29/',
@@ -131,4 +176,7 @@ inputs = {
     'uas_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/uas/29/',
     'vas_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/vas/29/',
     'sfcWind_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/sfcWind/29/',
+    'hurs_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/hurs/29/',
+    'huss_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/huss/29/',
+    'prsn_29'     : '/data/users/nikos.christidis/ukcp18/uk_12km_rcp85/prsn/29/',
 }
