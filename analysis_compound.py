@@ -8,33 +8,43 @@ from analysis_utils import make_color_map, make_spatial_mean, cumulative_runleng
 from input_datapaths import inputs
 
 '''
-###########################
-# Class ThresholdDetector #
-###########################
+####################################
+# Class ThresholdDetectorCoumpound #
+####################################
 
-Class ThresholdDetector holds information about the detection to be 
-performed and provides methods for computing the threshold crossings
-and producing simple plots of the results
+This is a version of the ThresholdDetector developed to examine compound
+events with two variables crossing simultaneously (on the same day) their
+specified thresholds.
+
+Class ThresholdDetectorCoumpound holds information about the detection 
+to be performed and provides methods for computing the threshold 
+crossings and producing simple plots of the results.
 
 Instances of the class are created as follows:
-       my_detection = ThresholdDetector(var, threshold, ens=ens, obs=False, method=method)
+       my_detection = ThresholdDetectorCompund([var1, var2], 
+                                               [threshold1, threshold2], 
+                                               [method1, method2], 
+                                               ens=ens, obs=False)
 
 Inputs:
-       var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr', 'uas',
-                                           'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
-       threshold: threshold value
+       var: input variables - a list of the two variables that define the compound
+                              event. Acceptable variables are:
+                              'tasmax', 'tasmin', 'tas', 'pr', 'uas',
+                              'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+       threshold: a list of the two threshold values
+       method : a list of the two threshold crossing method - can be 'above' or 'below' 
        ens (optional): an integer indicating the ensemble member (default = 1)
        obs(optional): True if analysing HadUK-Grid observations (default = False)
-       method (optional): threshold crossing method - can be 'above' (default) or 'below' 
 
 Attributes:
-       .var: input variable
-       .threshold: threshold value
+       .var: input variables
+       .threshold: threshold values
        .ens: ensemble member
-       .method: threshold crossing method
-       .indata: directory where the input UKCP18 files (netcdf - daily data) are stored
-                NOTE 1: the directory should only contain files for one variable and ensemble member
-                NOTE 2: if obs = True then this is the directory with the HadUK-Grid data
+       .method: threshold crossing methods
+       .indata: directories where the input UKCP18 files (netcdf - daily data) are stored
+                One directory per variable (indata is a list of the two directories).
+                NOTE 1: each directory should only contain files for one variable and ensemble member
+                NOTE 2: if obs = True then the input directories have the HadUK-Grid data
 
 Methods(details and examples of use are given at the header of each method):
        .detect: creates a DataArray of threshold crossings
@@ -45,40 +55,44 @@ Methods(details and examples of use are given at the header of each method):
 
 '''
 
-class ThresholdDetector:
+class ThresholdDetectorCompound:
 
     # Initialise the class
-    def __init__(self, var, threshold, ens=1, obs=False, method='above'):
+    def __init__(self, var, threshold, method, ens=1, obs=False):
+
+        # Check all mandatory inputs are lists of length 2
+        if not all(isinstance(x, list) and len(x) == 2 for x in [var, threshold, method]):
+            raise ValueError("Inputs var, threshold and method must all be lists of length 2")
 
         # Check in input variable is correct
-        if var not in ['tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas',
-                       'sfcWind', 'hurs', 'huss', 'prsn']:
-            raise ValueError(f'Invalid variable name: {var}.')
-
+        if any(v not in ['tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind',
+                         'hurs', 'huss', 'prsn'] for v in var):
+            raise ValueError(f'Invalid name for some input variable(s): {var}.')
+        
         # Check if input method is correct
-        if method not in ['above', 'below']:
-            raise ValueError(f'Invalid method name: {method}.')
-
+        if any(m not in ['above', 'below'] for m in method):
+            raise ValueError(f'Invalid name for some input method(s): {method}.')
+       
         # Create attributes that hold general information
         self.threshold = threshold
-        self.ens = ens
         self.method = method
+        self.ens = ens
         if obs and var == 'pr':
-            self.var = 'rainfall'
+            self.var = ['rainfall' if v == 'pr' else v for v in var]
         else:
             self.var = var
-        
+
         # Find the data folder for the requested detection
         # and keep the paths in attribute self.indata
         if obs:
-            self.indata = inputs[f'{var}_obs']
+            self.indata = [inputs[f'{var[0]}_obs'], inputs[f'{var[1]}_obs']]
         else:    
             if ens < 10:
-                self.indata = inputs[f'{var}_0{ens}']
+                self.indata = [inputs[f'{var[0]}_0{ens}'], inputs[f'{var[1]}_0{ens}']]
             else:
-                self.indata = inputs[f'{var}_{ens}']
+                self.indata = [inputs[f'{var[0]}_{ens}'], inputs[f'{var[1]}_{ens}']]
 
-                
+
     '''
     #################
     # Method detect #
@@ -122,26 +136,43 @@ class ThresholdDetector:
     def detect(self, select_years = None, select_months = None,
                years_from_dec = False, output_file = None):
 
-        print("Processing data in " + self.indata)
-
         # -------------------------------------------------------------------
         # List files and determine which years each file contains
         # -------------------------------------------------------------------
-        files = sorted(glob.glob(f"{self.indata}*.nc"))
-        file_years = {}   # mapping: filename → (start_year, end_year)
+        # VARIABLE 1 
+        print("Processing data in " + self.indata[0])
+        files = sorted(glob.glob(f"{self.indata[0]}*.nc"))
+        file_years1 = {}   # mapping: filename → (start_year, end_year)
         for f in files:
             data = xr.open_dataset(f, decode_times=True)
             start_year = data.time.min().dt.year.item()
             end_year   = data.time.max().dt.year.item()
-            file_years[f] = (start_year, end_year)
+            file_years1[f] = (start_year, end_year)
             data.close()
 
         # Determine the full year range
-        all_start_years = [yrs[0] for yrs in file_years.values()]
-        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        all_start_years = [yrs[0] for yrs in file_years1.values()]
+        all_end_years   = [yrs[1] for yrs in file_years1.values()]
         first_year = min(all_start_years)
         last_year  = max(all_end_years)
 
+        # VARIABLE 2
+        print("Processing data in " + self.indata[1])
+        files = sorted(glob.glob(f"{self.indata[1]}*.nc"))
+        file_years2 = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years2[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years2.values()]
+        all_end_years   = [yrs[1] for yrs in file_years2.values()]
+        first_year = max([first_year, min(all_start_years)])
+        last_year = min([last_year, max(all_end_years)])
+        
         # Select years to analyse (default: all available years)
         if select_years is not None:
             if not isinstance(select_years, list):
@@ -165,49 +196,82 @@ class ThresholdDetector:
 
             # Identify files that contain this year
             if years_from_dec:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
                     if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
             else:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
+                    if (y0 <= year <= y1) ]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
                     if (y0 <= year <= y1) ]
 
-            # Load only the time slices for this year
+            # Load only the time slices for this year - Variable 1
             parts = []
-            for f in relevant_files:
+            for f in relevant_files1:
                 data = xr.open_dataset(f, decode_times=True)
                 if years_from_dec:
-                    data_year = data[self.var].sel(time = 
+                    data_year = data[self.var[0]].sel(time = 
                         ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
                         ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
                 else:
-                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                    data_year = data[self.var[0]].where(data.time.dt.year == year, drop=True)
                 if data_year.sizes['time'] > 0:
                     parts.append(data_year)
                 data.close()
 
-            # Combine the parts
-            year_data = xr.concat(parts, dim="time")
+            # Combine the parts - Variable 1
+            year_data1 = xr.concat(parts, dim="time")
+
+            # Load only the time slices for this year - Variable 2
+            parts = []
+            for f in relevant_files2:
+                data = xr.open_dataset(f, decode_times=True)
+                if years_from_dec:
+                    data_year = data[self.var[1]].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var[1]].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
+                data.close()
+
+            # Combine the parts - Variable 2
+            year_data2 = xr.concat(parts, dim="time")
 
             # If there are not enough days in this year, then skip it
-            if year_data.sizes['time'] < 360:
+            if year_data1.sizes['time'] < 360 or year_data2.sizes['time'] < 360:
                 continue
 
             # If only some months are required (e.g. a season) then extract them
             if select_months is not None:
-                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+                year_data1 = year_data1.sel(time=(year_data1.time.dt.month.isin(select_months)))
+                year_data2 = year_data2.sel(time=(year_data2.time.dt.month.isin(select_months)))
 
             # ---------------------------------------------------------------
             # Compute annual exceedances
             # ---------------------------------------------------------------
-            if self.method == "above":
-                exceed = (year_data > self.threshold).sum(dim="time")
-            else:
-                exceed = (year_data < self.threshold).sum(dim="time")
+            if self.method == ['above', 'above']:
+                exceed = ((year_data1 > self.threshold[0]) &
+                          (year_data2 > self.threshold[1])).sum(dim="time")
+            if self.method == ['above', 'below']:
+                exceed = ((year_data1 > self.threshold[0]) &
+                          (year_data2 < self.threshold[1])).sum(dim="time")
+            if self.method == ['below', 'above']:
+                exceed = ((year_data1 < self.threshold[0]) &
+                          (year_data2 > self.threshold[1])).sum(dim="time")
+            if self.method == ['below', 'below']:
+                exceed = ((year_data1 < self.threshold[0]) &
+                          (year_data2 < self.threshold[1])).sum(dim="time")
 
             # Mask missing points
-            exceed = exceed.where(year_data.notnull().all(dim="time"))
+            exceed = exceed.where(year_data1.notnull().all(dim="time"))
+            exceed = exceed.where(year_data2.notnull().all(dim="time"))
 
             # Add the year coordinate properly
             if years_from_dec:
@@ -223,7 +287,7 @@ class ThresholdDetector:
         var_counts = xr.concat(annual_results, dim="year")
         var_counts.name = 'threshold_crossings'
         # Copy original attributes and update them
-        var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update(year_data1.attrs)
         var_counts.attrs.update({
             "standard_name": "theshold_crossings",
             "long_name": "Threshold Detector Output",
@@ -245,9 +309,9 @@ class ThresholdDetector:
     ###########################
 
     Method detect_maxlength creates an xarray DataArray of the maximum spell length
-    over time, latitude, and longitude. Spells are defined as consecutive days above
-    (or below) the threshold. The method computes the number of days associated with 
-    the longest spell of the year.
+    over time, latitude, and longitude. Spells are defined as consecutive days when
+    the thresholds of the two variables are crossed simultaneoulsy. The method computes
+    the number of days associated with the longest spell of the year.
 
     ---------
     Examples:
@@ -284,26 +348,43 @@ class ThresholdDetector:
     def detect_maxlength(self, select_years = None, select_months = None,
                          years_from_dec = False, output_file = None):
 
-        print("Processing data in " + self.indata)
-
         # -------------------------------------------------------------------
         # List files and determine which years each file contains
         # -------------------------------------------------------------------
-        files = sorted(glob.glob(f"{self.indata}*.nc"))
-        file_years = {}   # mapping: filename → (start_year, end_year)
+        # VARIABLE 1 
+        print("Processing data in " + self.indata[0])
+        files = sorted(glob.glob(f"{self.indata[0]}*.nc"))
+        file_years1 = {}   # mapping: filename → (start_year, end_year)
         for f in files:
             data = xr.open_dataset(f, decode_times=True)
             start_year = data.time.min().dt.year.item()
             end_year   = data.time.max().dt.year.item()
-            file_years[f] = (start_year, end_year)
+            file_years1[f] = (start_year, end_year)
             data.close()
 
         # Determine the full year range
-        all_start_years = [yrs[0] for yrs in file_years.values()]
-        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        all_start_years = [yrs[0] for yrs in file_years1.values()]
+        all_end_years   = [yrs[1] for yrs in file_years1.values()]
         first_year = min(all_start_years)
         last_year  = max(all_end_years)
 
+        # VARIABLE 2
+        print("Processing data in " + self.indata[1])
+        files = sorted(glob.glob(f"{self.indata[1]}*.nc"))
+        file_years2 = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years2[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years2.values()]
+        all_end_years   = [yrs[1] for yrs in file_years2.values()]
+        first_year = max([first_year, min(all_start_years)])
+        last_year = min([last_year, max(all_end_years)])
+        
         # Select years to analyse (default: all available years)
         if select_years is not None:
             if not isinstance(select_years, list):
@@ -316,7 +397,7 @@ class ThresholdDetector:
                 select_years = range(first_year, last_year)
             else:
                 select_years = range(first_year, last_year+1)
-        
+
         # -------------------------------------------------------------------
         # Loop over years, load only the slices needed
         # -------------------------------------------------------------------
@@ -327,46 +408,74 @@ class ThresholdDetector:
 
             # Identify files that contain this year
             if years_from_dec:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
                     if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]              
             else:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
+                    if (y0 <= year <= y1) ]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
                     if (y0 <= year <= y1) ]
 
-            # Load only the time slices for this year
+            # Load only the time slices for this year - Variable 1
             parts = []
-            for f in relevant_files:
+            for f in relevant_files1:
                 data = xr.open_dataset(f, decode_times=True)
                 if years_from_dec:
-                    data_year = data[self.var].sel(time = 
+                    data_year = data[self.var[0]].sel(time = 
                         ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
                         ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
                 else:
-                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                    data_year = data[self.var[0]].where(data.time.dt.year == year, drop=True)
                 if data_year.sizes['time'] > 0:
                     parts.append(data_year)
                 data.close()
 
-            # Combine the parts
-            year_data = xr.concat(parts, dim="time")
+            # Combine the parts - Variable 1
+            year_data1 = xr.concat(parts, dim="time")
 
-            # If there are not enough days in this year, then skip it
-            if year_data.sizes['time'] < 360:
+            # Load only the time slices for this year - Variable 2
+            parts = []
+            for f in relevant_files2:
+                data = xr.open_dataset(f, decode_times=True)
+                if years_from_dec:
+                    data_year = data[self.var[1]].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var[1]].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
+                data.close()
+
+            # Combine the parts - Variable 2
+            year_data2 = xr.concat(parts, dim="time")
+
+             # If there are not enough days in this year, then skip it
+            if year_data1.sizes['time'] < 360 or year_data2.sizes['time'] < 360:
                 continue
 
             # If only some months are required (e.g. a season) then extract them
             if select_months is not None:
-                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+                year_data1 = year_data1.sel(time=(year_data1.time.dt.month.isin(select_months)))
+                year_data2 = year_data2.sel(time=(year_data2.time.dt.month.isin(select_months)))
 
             # ---------------------------------------------------------------
             # Compute max length spells
             # ---------------------------------------------------------------
-            if self.method == 'above':
-                crossing = year_data > self.threshold
-            else:
-                crossing = year_data < self.threshold
+            if self.method == ['above', 'above']:
+                crossing = (year_data1 > self.threshold[0]) & (year_data2 > self.threshold[1])
+            if self.method == ['above', 'below']:
+                crossing = (year_data1 > self.threshold[0]) & (year_data2 < self.threshold[1])
+            if self.method == ['below', 'above']:
+                crossing = (year_data1 < self.threshold[0]) & (year_data2 > self.threshold[1])
+            if self.method == ['below', 'below']:
+                crossing = (year_data1 < self.threshold[0]) & (year_data2 < self.threshold[1])
 
             # Count consecutive True values within each spell
             spell_length = crossing.cumsum(dim="time") - \
@@ -376,7 +485,8 @@ class ThresholdDetector:
             max_spell_length = spell_length.max(dim="time")
 
             # Mask missing points
-            max_spell_length = max_spell_length.where(year_data.notnull().all(dim="time"))
+            max_spell_length = max_spell_length.where(year_data1.notnull().all(dim="time"))
+            max_spell_length = max_spell_length.where(year_data2.notnull().all(dim="time"))
 
             # Add the year coordinate properly
             if years_from_dec:
@@ -392,7 +502,7 @@ class ThresholdDetector:
         var_counts = xr.concat(annual_results, dim="year")
         var_counts.name = 'max_spell_length'
         # Copy original attributes and update them
-        var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update(year_data1.attrs)
         var_counts.attrs.update({
             "standard_name": "max_spell_length",
             "long_name": "Threshold Detector Output",
@@ -414,11 +524,11 @@ class ThresholdDetector:
     ########################
 
     Method detect_spells creates an xarray DataArray of threshold-crossing spells
-    over time, latitude, and longitude. Spells are defined as consecutive days
-    above (or below) the threshold. Spells of a minimumn length (min_length) may
-    be specified. Also, spells may be considered separate only if there 
-    are at least X no-crossing days (decluster_days) between them. Method 
-    detect_spells counts how many such events occur in the year.
+    over time, latitude, and longitude. Spells are defined as consecutive days when
+    the thresholds of the two variables are crossed simultaneoulsy. Spells of a 
+    minimumn length (min_length) may be specified. Also, spells may be considered 
+    separate only if there are at least X no-crossing days (decluster_days) 
+    between them. Method detect_spells counts how many such events occur in the year.
 
     ---------
     Examples:
@@ -467,26 +577,43 @@ class ThresholdDetector:
         if decluster_days < 1:
             raise ValueError(f'Invalid value for decluster_days: {decluster_days}. Must be >=1')
         
-        print("Processing data in " + self.indata)
-
         # -------------------------------------------------------------------
         # List files and determine which years each file contains
         # -------------------------------------------------------------------
-        files = sorted(glob.glob(f"{self.indata}*.nc"))
-        file_years = {}   # mapping: filename → (start_year, end_year)
+        # VARIABLE 1 
+        print("Processing data in " + self.indata[0])
+        files = sorted(glob.glob(f"{self.indata[0]}*.nc"))
+        file_years1 = {}   # mapping: filename → (start_year, end_year)
         for f in files:
             data = xr.open_dataset(f, decode_times=True)
             start_year = data.time.min().dt.year.item()
             end_year   = data.time.max().dt.year.item()
-            file_years[f] = (start_year, end_year)
+            file_years1[f] = (start_year, end_year)
             data.close()
 
         # Determine the full year range
-        all_start_years = [yrs[0] for yrs in file_years.values()]
-        all_end_years   = [yrs[1] for yrs in file_years.values()]
+        all_start_years = [yrs[0] for yrs in file_years1.values()]
+        all_end_years   = [yrs[1] for yrs in file_years1.values()]
         first_year = min(all_start_years)
         last_year  = max(all_end_years)
 
+        # VARIABLE 2
+        print("Processing data in " + self.indata[1])
+        files = sorted(glob.glob(f"{self.indata[1]}*.nc"))
+        file_years2 = {}   # mapping: filename → (start_year, end_year)
+        for f in files:
+            data = xr.open_dataset(f, decode_times=True)
+            start_year = data.time.min().dt.year.item()
+            end_year   = data.time.max().dt.year.item()
+            file_years2[f] = (start_year, end_year)
+            data.close()
+
+        # Determine the full year range
+        all_start_years = [yrs[0] for yrs in file_years2.values()]
+        all_end_years   = [yrs[1] for yrs in file_years2.values()]
+        first_year = max([first_year, min(all_start_years)])
+        last_year = min([last_year, max(all_end_years)])
+        
         # Select years to analyse (default: all available years)
         if select_years is not None:
             if not isinstance(select_years, list):
@@ -510,47 +637,75 @@ class ThresholdDetector:
 
             # Identify files that contain this year
             if years_from_dec:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
+                    if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
                     if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
             else:
-                relevant_files = [
-                    f for f, (y0, y1) in file_years.items()
+                relevant_files1 = [
+                    f for f, (y0, y1) in file_years1.items()
+                    if (y0 <= year <= y1) ]
+                relevant_files2 = [
+                    f for f, (y0, y1) in file_years2.items()
                     if (y0 <= year <= y1) ]
 
-            # Load only the time slices for this year
+            # Load only the time slices for this year - Variable 1
             parts = []
-            for f in relevant_files:
+            for f in relevant_files1:
                 data = xr.open_dataset(f, decode_times=True)
                 if years_from_dec:
-                    data_year = data[self.var].sel(time = 
+                    data_year = data[self.var[0]].sel(time = 
                         ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
                         ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
                 else:
-                    data_year = data[self.var].where(data.time.dt.year == year, drop=True)
+                    data_year = data[self.var[0]].where(data.time.dt.year == year, drop=True)
                 if data_year.sizes['time'] > 0:
                     parts.append(data_year)
                 data.close()
 
-            # Combine the parts
-            year_data = xr.concat(parts, dim="time")
+            # Combine the parts - Variable 1
+            year_data1 = xr.concat(parts, dim="time")
+
+            # Load only the time slices for this year - Variable 2
+            parts = []
+            for f in relevant_files2:
+                data = xr.open_dataset(f, decode_times=True)
+                if years_from_dec:
+                    data_year = data[self.var[1]].sel(time = 
+                        ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                        ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+                else:
+                    data_year = data[self.var[1]].where(data.time.dt.year == year, drop=True)
+                if data_year.sizes['time'] > 0:
+                    parts.append(data_year)
+                data.close()
+
+            # Combine the parts - Variable 2
+            year_data2 = xr.concat(parts, dim="time")
 
             # If there are not enough days in this year, then skip it
-            if year_data.sizes['time'] < 360:
+            if year_data1.sizes['time'] < 360 or year_data2.sizes['time'] < 360:
                 continue
 
             # If only some months are required (e.g. a season) then extract them
             if select_months is not None:
-                year_data = year_data.sel(time=(year_data.time.dt.month.isin(select_months)))
+                year_data1 = year_data1.sel(time=(year_data1.time.dt.month.isin(select_months)))
+                year_data2 = year_data2.sel(time=(year_data2.time.dt.month.isin(select_months)))
 
             # ---------------------------------------------------------------
             # Compute number of spells (separated by at least dectuster_days)
             # ---------------------------------------------------------------
 
-            if self.method == "above":
-                crossing = year_data > self.threshold
-            else:
-                crossing = year_data < self.threshold
+            if self.method == ['above', 'above']:
+                crossing = (year_data1 > self.threshold[0]) & (year_data2 > self.threshold[1])
+            if self.method == ['above', 'below']:
+                crossing = (year_data1 > self.threshold[0]) & (year_data2 < self.threshold[1])
+            if self.method == ['below', 'above']:
+                crossing = (year_data1 < self.threshold[0]) & (year_data2 > self.threshold[1])
+            if self.method == ['below', 'below']:
+                crossing = (year_data1 < self.threshold[0]) & (year_data2 < self.threshold[1])
 
             # Apply minumum spell length, if required
             if min_length:
@@ -585,7 +740,8 @@ class ThresholdDetector:
             exceed = new_event.sum(dim="time")
 
             # Mask missing points
-            exceed = exceed.where(year_data.notnull().all(dim="time"))
+            exceed = exceed.where(year_data1.notnull().all(dim="time"))
+            exceed = exceed.where(year_data2.notnull().all(dim="time"))
 
             # Add the year coordinate properly
             if years_from_dec:
@@ -601,7 +757,7 @@ class ThresholdDetector:
         var_counts = xr.concat(annual_results, dim="year")
         var_counts.name = 'spells_of_threshold_crossings'
         # Copy original attributes and update them
-        var_counts.attrs.update(year_data.attrs)
+        var_counts.attrs.update(year_data1.attrs)
         var_counts.attrs.update({
             "standard_name": "spells_of_theshold_crossings",
             "long_name": "Threshold Detector Output",

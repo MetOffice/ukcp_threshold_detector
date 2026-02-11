@@ -1,6 +1,9 @@
 import numpy as np
 import xarray as xr
 import pyproj
+import rasterio
+from rasterio.transform import from_origin
+import cartopy.crs as ccrs
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 
@@ -99,7 +102,11 @@ data: xarray data with coordinates defined either
 Output:
 fldm: array with weigthed mean values
 
-*NOTE: Data must be a single variable with coords [time, x, y]
+*NOTE 1: Data must be a single variable with coords [time, x, y]
+*NOTE 2: The function depends on the coordinate system and was developed
+for UKCP18 gridded data (but may also be applied to HadUKGrid). The
+code may not work when applied to datasets with different coordinate 
+systems, or coordinate names.
 
 '''
 
@@ -214,9 +221,135 @@ def gwl_ukcp18(data, ens, gwl, output_file = None):
 
     # Extract time-slice and return the mean
     data_gwl = data.sel(year = slice(y1, y1+19)).mean(dim = 'year')
+    data_gwl.attrs.update(data.attrs)
 
     # Save to netCDF if requested
     if output_file is not None:
         data_gwl.to_netcdf(output_file)
 
     return data_gwl
+
+
+'''
+##########################
+# Function nc2tif_ukcp18 #
+##########################
+
+Function nc2tif_ukcp18 converts netcdf output (.nc) from the Threshold 
+Detector to GeoTiff (.tif) for GIS applications. The input is the name
+of the netcdf file, which the function converts to GeoTiff and saves the 
+converted output into the working directory. If the input file has several
+years of spatial data (3D output), then the function creates separate
+GeoTiff files, one for each year. Output files keep the same name as the 
+input file, but with extension .tif instead of .nc, and if several years
+are transformed, then the corresponding files also have the year 
+information in the name (as "_YYYY.tif").
+
+Example: 
+nc2tif_ukcp18(ncfile)
+
+Input:
+ncfile: the netcdf file with the input data (e.g. 'input_data.nc')
+
+Output:
+The function transforms the input file to .tif and saves the output
+in the working directory.
+
+*NOTE: The function depends on the coordinate system and was developed
+for threshold detections created with UKCP18 data (but may also be used
+for HadUKGrid based detctions). The code may not work when applied to
+datasets with different coordinate systems, or coordinate names.
+
+'''
+
+def nc2tif_ukcp18(ncfile):
+
+    # Open dataset
+    dataset = xr.open_dataset(ncfile)
+    data = dataset[list(dataset.data_vars)[0]]
+
+    # Select ensemble member if in dims
+    if 'ensemble_member' in data.dims:
+        data = data.sel(ensemble_member = data.ensemble_member.item())
+
+    # Determine years to export
+    if 'year' in data.dims:
+        years = list(data.year.values)
+    else:
+        years = [None]
+
+    # Determine coordinate type
+    coords = data.coords
+    if 'projection_x_coordinate' in coords and 'projection_y_coordinate' in coords:
+        # Case 1: standard UKCP projection coordinates
+        x = data.projection_x_coordinate.values
+        y = data.projection_y_coordinate.values
+        crs = pyproj.CRS.from_epsg(27700)  # Already in British National Grid
+    elif 'grid_latitude' in coords and 'grid_longitude' in coords:
+        # Case 2: rotated-pole high-res UKCP
+        rot_lat = data.grid_latitude.values
+        rot_lon = data.grid_longitude.values
+        pole_lat = 37.5
+        pole_lon = 177.5
+        rot_crs = ccrs.RotatedPole(pole_latitude=pole_lat, pole_longitude=pole_lon)
+        rot_crs_proj = pyproj.CRS.from_wkt(rot_crs.to_wkt())
+        # Target CRS: British National Grid
+        target_crs = pyproj.CRS.from_epsg(27700)
+        # Create transformer
+        transformer = pyproj.Transformer.from_crs(rot_crs_proj, target_crs, always_xy=True)
+        # Make 2D meshgrid of rotated coordinates
+        lon2d, lat2d = np.meshgrid(rot_lon, rot_lat)
+        # Transform rotated coordinates to target CRS
+        x2d, y2d = transformer.transform(lon2d, lat2d)
+        # Take first row/column to define 1D x and y arrays for raster writing
+        x = x2d[0, :]      # x along columns
+        y = y2d[:, 0]      # y along rows
+        crs = target_crs
+    else:
+        raise ValueError("Unknown coordinate system in data")
+       
+    # Perform the transformation. If many years produce one file per year
+    for yr in years:
+        # Select year (for 3D fields)
+        if yr is None:
+            da = data.squeeze()
+        else:
+            da = data.sel(year=yr).squeeze()
+        assert len(da.dims) == 2, 'DataArray must be 2D for GeoTIFF output'
+        # Reorder y-coord if necessary to be north-up
+        if y[0] < y[-1]:
+            data_vals = da.values[::-1, :]
+            y_flipped = y[::-1]
+        else:
+            data_vals = da.values
+            y_flipped = y
+        # Pixel sizes (always positive)
+        xsize = abs(float(x[1] - x[0]))
+        ysize = abs(float(y_flipped[1] - y_flipped[0]))
+        west = float(x.min())
+        north = float(y_flipped.max())
+        transform = from_origin(west, north, xsize, ysize)
+        # Output filename
+        if yr is None:
+            output_file = ncfile.rsplit('.',1)[0]+'.tif'
+        else:
+            output_file = ncfile.rsplit('.',1)[0]+'_'+str(yr)+'.tif'     
+        # Write GeoTIFF
+        with rasterio.open(
+            output_file,
+            'w',
+            driver='GTiff',
+            height=data_vals.shape[0],
+            width=data_vals.shape[1],
+            count=1,
+            dtype=data_vals.dtype,
+            crs=crs,
+            transform=transform,
+            nodata=np.nan
+        ) as dst:
+            dst.write(data_vals, 1)
+            dst.update_tags(
+                variable=data.name,
+                long_name=data.attrs.get("long_name", ""),
+                units=data.attrs.get("units", ""),
+                standard_name=data.attrs.get("standard_name", ""))
