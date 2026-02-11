@@ -2,12 +2,13 @@
 
 - [1. Introduction](#1-introduction)
 - [2. Code Structure](#2-code-structure)
-- [3. Examples](#3-examples)
+- [3. Compound Events](#3-compound-events)
+- [4. Examples](#4-examples)
 
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
-The code processes **UKCP18 daily gridded data (default resolution 12 km)** to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, and *sfcWind*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
+The code processes **UKCP18 daily gridded data (default resolution 12 km)** to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
 - the **variable** of interest,
 - the **ensemble member**, and
 - the **threshold value** and **detection method** (*above* or *below*).
@@ -35,7 +36,7 @@ This script contains the main code of the tool and defines the class *ThresholdD
 This is the basic building block of the tool and the starting point of all computations, which are performed using a set of methods defined within the class.
 
   - Class Inputs:
-    - **var**: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr'
+    - **var**: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
     - **threshold**: threshold value
     - **ens** (optional): an integer indicating the ensemble member (default = 1)
     - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
@@ -90,13 +91,76 @@ This script contains supporting functions used in the analysis, including:
 - **Function cumulative_runlength**: a function that computes the run length of consecutive threshold exceedances along the time dimension .
 - **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
 - **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
+- **Function nc2tif_ukcp18**: a function that converts netcdf output from the Threshold Detector to raster (GeoTIFF) format for GIS applications. It transfroms .nc files to .tif, assuming that the UKCP18 coordinate system was used. The code requires the spatial fields to be on the UKCP18 (or HadUK-Grid) coordinate system and the spatial coordinates to have standard names (e.g., for latitude either *projection_y_coordinate* or *grid_latitude*).
 
 #### input_datapaths.py
 This script defines the file paths for UKCP18 daily data for each ensemble member (and HadUKGrid-data, if required). Users should edit this file to provide the paths to their local data. 
 
+> ##### Data Preparation
+> The paths to the input data directories are specified in **input_datapaths.py**. The user needs to edit this file before using the Threshold Detector to provide the correct paths to the required data.
+>
+> The NetCDF files with the daily gridded data should all be stored in separate folders for each variable and UKCP18 ensemble member (or for each variable, if HadUK-Grid data is used instead of UKCP18). Each folder must contain only the required NetCDF files.
+>
+> The data may be stored in a single file or split across multiple files. The code accepts any number of files and any file naming convention, and will loop through all available NetCDF files in the folder to determine which dates each file contains.
+>
+> The script **input_datapaths.py** contains a Python dictionary that maps data paths to specific variables and ensemble members. An example of the dictionary format is shown below:
+>
+>``` python
+> inputs = {
+>    'tasmax_obs' : '/data/users/username/haduk_grid/12km/tasmax/',
+>    'tasmin_obs' : '/data/users/username/haduk_grid/12km/tasmin/',
+>    'pr_obs'     : '/data/users/username/haduk_grid/12km/rainfall/',
+>
+>    'tasmax_01'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmax/01/',
+>    'tasmin_01'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmin/01/',
+>    'tas_01'     : '/data/users/username/ukcp18/uk_12km_rcp85/tas/01/',
+>    'pr_01'      : '/data/users/username/ukcp18/uk_12km_rcp85/pr/01/',
+>    'uas_01'     : '/data/users/username/ukcp18/uk_12km_rcp85/uas/01/',
+>    'vas_01'     : '/data/users/username/ukcp18/uk_12km_rcp85/vas/01/',
+>    'sfcWind_01' : '/data/users/username/ukcp18/uk_12km_rcp85/sfcWind/01/',
+>    'hurs_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/hurs/01/',
+>    'huss_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/huss/01/',
+>    'prsn_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/prsn/01/',
+>
+>    'tasmax_04'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmax/04/',
+>    'tasmin_04'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmin/04/',
+>    'tas_04'     : '/data/users/username/ukcp18/uk_12km_rcp85/tas/04/',
+>    'pr_04'      : '/data/users/username/ukcp18/uk_12km_rcp85/pr/04/',
+>    'uas_04'     : '/data/users/username/ukcp18/uk_12km_rcp85/uas/04/',
+>    'vas_04'     : '/data/users/username/ukcp18/uk_12km_rcp85/vas/04/',
+>    'sfcWind_04' : '/data/users/username/ukcp18/uk_12km_rcp85/sfcWind/04/',
+>    'hurs_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/hurs/04/',
+>    'huss_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/huss/04/',
+>    'prsn_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/prsn/04/',
+>}
+>```
+>In the example above, the user provides the paths for three variables from HadUK-Grid and ten variables for UKCP18 ensemble members 1 and 4. The script can be edited to add or remove variables and/or ensemble members as required. The paths are mapped to names that follow the naming convention *var_X*, where *var* denotes the variable name and *X* is either the two-digit ensemble member ID for UKCP18 data or *obs* for HadUK-Grid data.
+
+
+### 3. Compound Events
+While the Threshold Detector was originally developed for univariate analyses (threshold crossings of a single variable), it has been extended to also support simple compound events, defined as days when the thresholds of two variables are crossed simultaneously. The compound functionality is implemented in **analysis_compound.py**, which extends the original **analysis.py** script to handle two variables and their respective thresholds. As before, a detection instance can be created using a high-level class, now called *ThresholdDetectorCompound*, which is an extension of the original *ThresholdDetector*. The class inputs and attributes for compound events are listed below:
+
+- **Class ThresholdDetectorCompound**
+This is the basic building block of the tool for *compound* events.
+
+  - Class Inputs:
+    - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: 'tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+    - **threshold**: a list of the two threshold values
+    - **method** : a list of the two threshold crossing method - can be 'above' or 'below' 
+    - **ens** (optional): an integer indicating the ensemble member (default = 1)
+    - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
+  - Class Attributes:
+    - **var**: input variables
+    - **threshold**: threshold values
+    - **ens**: ensemble member
+    - **method**: threshold crossing methods
+    - **indata**: directories where the input UKCP18 files (NetCDF - daily data) are stored
+
+Once an instance is created, the tool works in the same way as in the univariate case. This means that users can compute up to three different threshold-crossing metrics with the methods **detect**, **detect_maxlength**, **detect_spells** described in Section 2. The plotting methods **plot_temporal_mean** and **plot_spatial_mean** can also be used to quickly visualise the outputs.
+
 
 ***
-### 3. Examples
+### 4. Examples
 
 - Basic use
 ``` python
@@ -189,5 +253,20 @@ thresh_metric = mydetection.detect()
 
 # Compute the metric for a GWL of 2 degrees and save it in a file
 thresh_metric_gwl = gwl_ukcp18(thresh_metric, ens = mydetection.ens, gwl=2.0, output_file = 'thresh_2deg_gwl.nc')
+```
 
+- Compound events
+``` python
+# Example compound event: hot and dry days with tasmax > 30. C and pr < 1 mm.
+from analysis_compound import ThresholdDetectorCompound
+mydetection = ThresholdDetectorCompound(['tasmax', 'pr'], [30., 1.], ['above', 'below'], ens=8)
 
+# Compute three metrics: 1) crossing counts, 2) spells longer than three days, 3) longest spell length
+thresh_metric_1 = mydetection.detect()
+thresh_metric_2 = mydetection.detect_spells(min_length = 3)
+thresh_metric_3 = mydetection.detect_maxlength()
+
+# Visualisations for thresh_metric_1
+mydetection.plot_temporal_mean(thresh_metric_1, 2070, 2079)
+mydetection.plot_spatial_mean(thresh_metric_1)
+```
