@@ -8,7 +8,7 @@
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
-The code processes **UKCP18 daily gridded data (default resolution 12 km)** to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
+The code processes **UKCP18 daily gridded data*** (default resolution 12 km, but higher resolution datasets may also be used) to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
 - the **variable** of interest,
 - the **ensemble member**, and
 - the **threshold value** and **detection method** (*above* or *below*).
