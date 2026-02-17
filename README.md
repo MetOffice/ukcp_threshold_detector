@@ -8,7 +8,7 @@
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
-The code processes **UKCP18 daily gridded data*** (default resolution 12 km, but higher resolution datasets may also be used) to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
+The code processes **UKCP18 daily gridded data** (default resolution 12 km, but higher resolution datasets may also be used) to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
 - the **variable** of interest,
 - the **ensemble member**, and
 - the **threshold value** and **detection method** (*above* or *below*).
@@ -27,10 +27,10 @@ The tool uses **[xarray](https://docs.xarray.dev/en/stable/)** to read and analy
 > ##### Code logic
 > The tool is built around a high-level class called *ThresholdDetector*, with which users can create a detection *instance* by specifying the variable of interest, the threshold, and the crossing method (going above or below the threshold). Optionally, they may also specify the ensemble member, or indicate that observations should be used for the analysis instead of UKCP data. Once an instance is created, which holds all the high-level information, users can apply it to multiple functions (called *methods* in Python) without the need to re-specify the high-level information (variable, threshold, crossing method) each time. The same instance can be used to call different methods as required. The tool currently includes three methods that compute three different detection metrics (threshold-crossing counts, number of spells, and maximum spell length), as well as two additional methods for basic visualisation of the computed metrics.
 
-The code repository includes the Python scripts listed below. Further information about each component is provided through comments and examples in the scripts.
+The code repository includes the Python modules listed below. Further information about each component is provided through comments and examples included in the modules.
 
 #### analysis.py
-This script contains the main code of the tool and defines the class *ThresholdDetector*. The class stores information about the detection setup and provides methods to compute threshold-crossing metrics and generate simple plots of the results. Example uses and notes on its capabilities are provided in the script comments and a brief desctiption of the different components is summarised below:
+This module contains the main code of the tool and defines the class *ThresholdDetector*. The class stores information about the detection setup and provides methods to compute threshold-crossing metrics and generate simple plots of the results. Example uses and notes on its capabilities are provided in the script comments and a brief desctiption of the different components is summarised below:
 
 - **Class ThresholdDetector**
 This is the basic building block of the tool and the starting point of all computations, which are performed using a set of methods defined within the class.
@@ -57,11 +57,11 @@ The methods of *ThersholdDetector* that compute threshold-crossing metrics are:
   - **output_file**: name of a NetCDF file to save the output.
 
 - **Method detect_maxlength.**
-  This method computes the maximum spell length in each year, where spells are defined as consecutive days above (or below) the threshold. The method has the same inputs as method *detect*.
+  This method computes the maximum spell length in each year, where spells are defined as consecutive days above (or below) the threshold. The method has the same input parameters as method *detect*.
 
 - **Method detect_spells.**
    This method computes the total number of threshold-crossing spells in each year. Spells are again defined as consecutive days above (or below) the threshold. Spells of a minimumn length (*min_length*) may be specified.
-   Also, spells may be considered separate only if there are at least X non-exceedance days (*decluster_days*) between them. In addition to the inputs of method *detect*, this method also includes the following (optional) parameters:
+   Also, spells may be considered separate only if there are at least X non-exceedance days (*decluster_days*) between them. In addition to the input parameters of method *detect*, this method also includes the following (optional) parameters:
   - **min_length:** if specified, only spells with at least *min_length* days are counted.
   - **decluster_days:** minimum number of days without a threshold crossing required between spells. If set to 1 (default), all spells are counted, even if only separated by 1 day.
 
@@ -86,8 +86,8 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
   - **output_file** (optional): name of a png file to save the plot
 
 #### analysis_utils.py
-This script contains supporting functions used in the analysis, including:
-- **Function make_color_cmap**: a function that create a custom colour map used for map plotting.
+This module contains supporting functions used in the analysis, including:
+- **Function make_color_cmap**: a function that creates a custom colour map used for map plotting.
 - **Function cumulative_runlength**: a function that computes the run length of consecutive threshold exceedances along the time dimension .
 - **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
 - **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
@@ -103,7 +103,7 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 >
 > The data may be stored in a single file or split across multiple files. The code accepts any number of files and any file naming convention, and will loop through all available NetCDF files in the folder to determine which dates each file contains.
 >
-> The script **input_datapaths.py** contains a Python dictionary that maps data paths to specific variables and ensemble members. An example of the dictionary format is shown below:
+> The file **input_datapaths.py** contains a Python dictionary that maps data paths to specific variables and ensemble members. An example of the dictionary format is shown below:
 >
 >``` python
 > inputs = {
@@ -134,11 +134,11 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 >    'prsn_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/prsn/04/',
 >}
 >```
->In the example above, the user provides the paths for three variables from HadUK-Grid and ten variables for UKCP18 ensemble members 1 and 4. The script can be edited to add or remove variables and/or ensemble members as required. The paths are mapped to names that follow the naming convention *var_X*, where *var* denotes the variable name and *X* is either the two-digit ensemble member ID for UKCP18 data or *obs* for HadUK-Grid data.
+>In the example above, the user provides the paths for three variables from HadUK-Grid and ten variables for UKCP18 ensemble members 1 and 4. The file can be edited to add or remove variables and/or ensemble members as required. The paths are mapped to names that follow the naming convention *var_X*, where *var* denotes the variable name and *X* is either the two-digit ensemble member ID for UKCP18 data or *obs* for HadUK-Grid data.
 
 
 ### 3. Compound Events
-While the Threshold Detector was originally developed for univariate analyses (threshold crossings of a single variable), it has been extended to also support simple compound events, defined as days when the thresholds of two variables are crossed simultaneously. The compound functionality is implemented in **analysis_compound.py**, which extends the original **analysis.py** script to handle two variables and their respective thresholds. As before, a detection instance can be created using a high-level class, now called *ThresholdDetectorCompound*, which is an extension of the original *ThresholdDetector*. The class inputs and attributes for compound events are listed below:
+While the Threshold Detector was originally developed for univariate analyses (threshold crossings of a single variable), it has been extended to also support simple compound events, defined as days when the thresholds of two variables are crossed simultaneously. The compound functionality is implemented in **analysis_compound.py**, which extends the original **analysis.py** module to handle two variables and their respective thresholds. As before, a detection instance can be created using a high-level class, now called *ThresholdDetectorCompound*, which is an extension of the original *ThresholdDetector*. The class inputs and attributes for compound events are listed below:
 
 - **Class ThresholdDetectorCompound**
 This is the basic building block of the tool for *compound* events.
@@ -252,7 +252,7 @@ mydetection = ThresholdDetector('tasmax', 27.)
 thresh_metric = mydetection.detect()
 
 # Compute the metric for a GWL of 2 degrees and save it in a file
-thresh_metric_gwl = gwl_ukcp18(thresh_metric, ens = mydetection.ens, gwl=2.0, output_file = 'thresh_2deg_gwl.nc')
+thresh_metric_gwl = gwl_ukcp18(thresh_metric, ens = mydetection.ens, gwl = 2.0, output_file = 'thresh_2deg_gwl.nc')
 ```
 
 - Compound events
