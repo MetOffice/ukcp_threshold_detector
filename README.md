@@ -92,6 +92,8 @@ This module contains supporting functions used during detection analyses. These 
 - **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
 - **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
 - **Function nc2tif_ukcp18**: a function that converts NetCDF output from the Threshold Detector to raster (GeoTIFF) format for GIS applications. It transfroms .nc files to .tif, assuming that the UKCP18 coordinate system was used. The code requires the spatial fields to be on the UKCP18 (or HadUK-Grid) coordinate system and the spatial coordinates to have standard names (e.g., for latitude either *projection_y_coordinate* or *grid_latitude*).
+- **Function apply_spatial_smoothing**: a function that spatially smoothes the metric created the *ThresholdDetector*. It replaces each grid-point value by the mean of the NxN grid boxes around it. Default box-size N is set to 3 (i.e. smoothing uses the mean of
+    3x3=9 values around the grid-point).
 
 #### input_datapaths.py
 This script defines the file paths for UKCP18 daily data for each ensemble member (and HadUKGrid-data, if required). Users should edit this file to provide the paths to their local data. 
@@ -269,4 +271,21 @@ thresh_metric_3 = mydetection.detect_maxlength()
 # Visualisations for thresh_metric_1
 mydetection.plot_temporal_mean(thresh_metric_1, 2070, 2079)
 mydetection.plot_spatial_mean(thresh_metric_1)
+```
+
+- Other supporting functions
+``` python
+# Import from modules, create and instance and compute simple metric
+from analysis import ThresholdDetector
+from analysis utils import nc2tif_ukcp18, apply_spatial_smoothing
+
+mydetection = ThresholdDetector('tasmax', 30.)
+thresh_metric = mydetection.detect(output_file = 'thresh_metric.nc')
+
+# Example 1: convert output NetCDF file to GeoTiff for GIS applications
+nc2tif_ukcp18('thresh_metric.nc')
+
+# Example 2: spatially smooth field, using the mean of NxN boxes
+metric_smoothed_3x3 = apply_spatial_smoothing(thresh_metric, box_size = 3)
+metric_smoothed_7x7 = apply_spatial_smoothing(thresh_metric, box_size = 7)
 ```
