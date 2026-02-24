@@ -10,6 +10,7 @@ Utility functions used by the Threshold Detector
    . Function make_spatial_mean: computes the weigthed spatial mean of spatial fields
    . Function gwl_ukcp18: computes a selected Global Warming Level (GWL)
    . Function nc2tif_ukcp18: converts netcdf files tif
+   . Function apply_spatial_smoothing: spatialy smooths the ThresholdDetector output metric
 
 '''
 
@@ -192,11 +193,11 @@ def gwl_ukcp18(data, ens, gwl, output_file = None):
     ens: the number of the UKCP18 ensemble member
     gwl: the GWL - must be one of 1., 1.5, 2, 2.5, 3., 3.5, 4.
 
-Output:
-data_gwl: DataArray with the field for the requested GWL
-output_file(optional): name of a netcdf file to save the output   
+    Output:
+    data_gwl: DataArray with the field for the requested GWL
+    output_file(optional): name of a netcdf file to save the output   
 
-'''
+    '''
 
     # Start year of the 20-year time slice for each GWL
     gwl_period = {
@@ -362,3 +363,58 @@ def nc2tif_ukcp18(ncfile):
                 long_name=data.attrs.get("long_name", ""),
                 units=data.attrs.get("units", ""),
                 standard_name=data.attrs.get("standard_name", ""))
+
+
+def apply_spatial_smoothing(data, box_size=3, output_file = None):
+    '''
+    ####################################
+    # Function apply_spatial_smoothing #
+    ####################################
+
+    Function apply_spatial_smoothing takes as input a DataArrary of a threshold
+    metric created by the ThresholdDetector and applies spatial smoothing to all
+    fields by replacing each grid-point value by the mean of the NxN grid boxes
+    around it. Default box-size N is set to 3 (i.e. smoothing uses the mean of
+    3x3=9 values around the grid-point).
+
+    Examples: 
+    smoothed_data = apply_spatial_smoothing(data)
+    smoothed_data = apply_spatial_smoothing(data, box_size=5, 
+                    output_file = 'smoothed_data.nc')
+
+    Input:
+    data: a DataArray with the threshold-crossing metric
+    box_size (optional): the size of the box used for smoothing (default = 3)
+
+    Output:
+    smoothed_data: a DataArray with the smoothed metric
+    output_file(optional): name of a netcdf file to save the output 
+
+    *NOTE: The function depends on the coordinate names of the input field and
+     was developed for UKCP18 data (but may also be used with HadUKGrid). The
+     code will not work when applied to datasets with different coordinate names.
+
+    '''
+
+    # Smooth input field
+    if 'projection_x_coordinate' in data.coords and \
+       'projection_y_coordinate' in data.coords:
+        data_smoothed = (data.rolling(projection_y_coordinate = box_size,
+                                      projection_x_coordinate = box_size,
+                                      center = True, min_periods = 1).mean())
+    elif 'grid_latitude' in data.coords and \
+         'grid_longitude' in data.coords:
+        data_smoothed = (data.rolling(grid_latitude = box_size,
+                                      grid_longitude = box_size,
+                                      center = True, min_periods = 1).mean())
+    else:
+        raise ValueError("Unknown coordinate system in data")
+
+    # Mask by the input field
+    data_smoothed = data_smoothed.where(data.notnull())
+
+    # Save to NetCDF if requested
+    if output_file is not None:
+        data_smoothed.to_netcdf(output_file)
+
+    return data_smoothed
