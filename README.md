@@ -16,31 +16,31 @@ The code processes **UKCP18 daily gridded data** (default resolution 12 km, but 
 Additional functionality also allows users to apply the detector to **HadUK-Grid** observations instead of UKCP by setting:
 - parameter **obs = *True*** (default is *False*)
 
-The tool returns **gridded fields of threshold crossings** in the same **NetCDF format** as the input data and can also produce **simple visual outputs**, such as maps of exceedance frequency or time series of area-mean values. 
+The tool returns **gridded fields of threshold crossings** that can be saved in the same **NetCDF format** as the input data and can also produce **simple visual outputs**, such as maps of the threshold-crossing metric or time series of its area-mean values. 
 
-> ##### Spatial resolution of input data
-> The tool can analyse datasets with different spatial resolutions. The default 12 km resolution allows fast computations, whereas higher-resolution datasets (e.g. 2.2 km or 1 km) increase the computational cost. Users working with high-resolution datasets may require additional computing resources and may wish to analyse the data in segments - for example, processing one decade at a time rather than all available years in a single job. The tool allows users to select and analyse subsets of the available years.
+> ##### Spatial resolution of the input data
+> The tool can analyse datasets with different spatial resolutions. The 12 km resolution allows fast computations, whereas higher-resolution datasets (e.g. 2.2 km or 1 km) increase the computational cost. Users working with high-resolution datasets may require additional computing resources and may wish to analyse the data in segments - for example, processing one decade at a time rather than all available years in a single job. The tool supports this approach by allowing users to select and analyse subsets of the available years.
 
 ### 2. Code Structure
-The tool uses **[xarray](https://docs.xarray.dev/en/stable/)** to read and analyse the input NetCDF files. Users can save the output detection field as a NetCDF file. The output field retains the same attributes as the input and includes a coordinate, *year*, which represents the time dimension and gives the threshold-crossing metric for each analysed year.
+The tool employs **[xarray](https://docs.xarray.dev/en/stable/)** to read and analyse the input NetCDF files. Users can save the output detection field as a NetCDF file. The output field retains the same attributes as the input and includes a coordinate, *year*, which represents the time dimension and gives the threshold-crossing metric for each analysed year.
 
 > ##### Code logic
 > The tool is built around a high-level class called *ThresholdDetector*, with which users can create a detection *instance* by specifying the variable of interest, the threshold, and the crossing method (going above or below the threshold). Optionally, they may also specify the ensemble member, or indicate that observations should be used for the analysis instead of UKCP data. Once an instance is created, which holds all the high-level information, users can apply it to multiple functions (called *methods* in Python) without the need to re-specify the high-level information (variable, threshold, crossing method) each time. The same instance can be used to call different methods as required. The tool currently includes three methods that compute three different detection metrics (threshold-crossing counts, number of spells, and maximum spell length), as well as two additional methods for basic visualisation of the computed metrics.
 
-The code repository includes the Python modules listed below. Further information about each component is provided through comments and examples included in the modules.
+The code repository includes the Python modules listed below. Example usage and notes on the tool’s components are provided within the code comments and are also summarised briefly below.
 
 #### analysis.py
-This module contains the main code of the tool and defines the class *ThresholdDetector*. The class stores information about the detection setup and provides methods to compute threshold-crossing metrics and generate simple plots of the results. Example uses and notes on its capabilities are provided in the script comments and a brief desctiption of the different components is summarised below:
+This module contains the main code of the tool and defines the class *ThresholdDetector*. The class stores information about the detection setup and provides methods to compute threshold-crossing metrics and generate simple plots of the results. The module's components are:
 
 - **Class ThresholdDetector**
 This is the basic building block of the tool and the starting point of all computations, which are performed using a set of methods defined within the class.
 
   - Class Inputs:
-    - **var**: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+    - **var**: input variable - can be one of '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*'
     - **threshold**: threshold value
     - **ens** (optional): an integer indicating the ensemble member (default = 1)
     - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
-    - **method** (optional): threshold crossing method - can be 'above' (default) or 'below'
+    - **method** (optional): threshold crossing method - can be '*above*' (default) or '*below*'
   - Class Attributes (information created and stored in the instance when the class is called):
     - **var**: input variable
     - **threshold**: threshold value
@@ -70,7 +70,7 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
 ***Important note:*** the plotting methods are only to be applied to the UK region covered by UKCP or HadUK-Grid data and may not work correctly if the input fields have non-stardard co-ordinate names or grid specifications.
 
 - **Method plot_temporal_mean.**
-  This method plots a map of the mean threshold-crossing metric over a period starting in y1 and ending in y2. It takes as an input an instance if the ThresholdDetector as well as  the following:
+-   This method plots a map of the mean threshold-crossing metric over a period starting in year *y1* and ending in year *y2*. It takes as an input an instance of the *ThresholdDetector* as well as  the following:
   
   - **var_counts**: a DataArray with the threshold-crossing metric (created by one of the detect methods)
   - **y1, y2**: the first and last years of the selected period
@@ -78,7 +78,7 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
   - **output_file**(optional): name of a png file to save the plot
 
 - **Method plot_spatial_mean.**
-  This method plots the timeseries of the annual mean threshold-crossing metric over an area. It takes as an input an instance if the ThresholdDetector as well as  the following:
+  This method plots the timeseries of the annual mean threshold-crossing metric over an area. It takes as an input an instance of the *ThresholdDetector* as well as  the following:
   
   - **var_counts**: a DataArray with the threshold-crossing metric (created by one of the detect methods)
   - **mylon, mylat** (optional): 2-dimensional lists with the coordinates of an area to extract. If not given, the mean is computed over the entire area
@@ -86,12 +86,14 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
   - **output_file** (optional): name of a png file to save the plot
 
 #### analysis_utils.py
-This module contains supporting functions used in the analysis, including:
+This module contains supporting functions used during detection analyses. These may be called by methods of the *ThresholdDetector* or used independently to provide additional functionality, such as file format conversions. The available functions are:
 - **Function make_color_cmap**: a function that creates a custom colour map used for map plotting.
 - **Function cumulative_runlength**: a function that computes the run length of consecutive threshold exceedances along the time dimension .
 - **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
 - **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
-- **Function nc2tif_ukcp18**: a function that converts netcdf output from the Threshold Detector to raster (GeoTIFF) format for GIS applications. It transfroms .nc files to .tif, assuming that the UKCP18 coordinate system was used. The code requires the spatial fields to be on the UKCP18 (or HadUK-Grid) coordinate system and the spatial coordinates to have standard names (e.g., for latitude either *projection_y_coordinate* or *grid_latitude*).
+- **Function nc2tif_ukcp18**: a function that converts NetCDF output from the Threshold Detector to raster (GeoTIFF) format for GIS applications. It transfroms .nc files to .tif, assuming that the UKCP18 coordinate system was used. The code requires the spatial fields to be on the UKCP18 (or HadUK-Grid) coordinate system and the spatial coordinates to have standard names (e.g., for latitude either *projection_y_coordinate* or *grid_latitude*).
+- **Function apply_spatial_smoothing**: a function that spatially smoothes the metric created the *ThresholdDetector*. It replaces each grid-point value by the mean of the NxN grid boxes around it. Default box-size N is set to 3 (i.e. smoothing uses the mean of
+    3x3=9 values around the grid-point).
 
 #### input_datapaths.py
 This script defines the file paths for UKCP18 daily data for each ensemble member (and HadUKGrid-data, if required). Users should edit this file to provide the paths to their local data. 
@@ -138,15 +140,15 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 
 
 ### 3. Compound Events
-While the Threshold Detector was originally developed for univariate analyses (threshold crossings of a single variable), it has been extended to also support simple compound events, defined as days when the thresholds of two variables are crossed simultaneously. The compound functionality is implemented in **analysis_compound.py**, which extends the original **analysis.py** module to handle two variables and their respective thresholds. As before, a detection instance can be created using a high-level class, now called *ThresholdDetectorCompound*, which is an extension of the original *ThresholdDetector*. The class inputs and attributes for compound events are listed below:
+In addition to univariate analyses (threshold crossings of a single variable), the Threshold Detector has been extended to also support simple compound events, defined as days when the thresholds of two variables are crossed simultaneously. The compound functionality is implemented in **analysis_compound.py**, which extends the original **analysis.py** module to handle two variables and their respective thresholds. As before, a detection instance can be created using a high-level class, now called *ThresholdDetectorCompound*, which is an extension of the original *ThresholdDetector*. The class inputs and attributes for compound events are listed below:
 
 - **Class ThresholdDetectorCompound**
 This is the basic building block of the tool for *compound* events.
 
   - Class Inputs:
-    - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: 'tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+    - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*'
     - **threshold**: a list of the two threshold values
-    - **method** : a list of the two threshold crossing method - can be 'above' or 'below' 
+    - **method** : a list of the two threshold crossing methods - can be '*above*' or '*below*' 
     - **ens** (optional): an integer indicating the ensemble member (default = 1)
     - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
   - Class Attributes:
@@ -269,4 +271,21 @@ thresh_metric_3 = mydetection.detect_maxlength()
 # Visualisations for thresh_metric_1
 mydetection.plot_temporal_mean(thresh_metric_1, 2070, 2079)
 mydetection.plot_spatial_mean(thresh_metric_1)
+```
+
+- Other supporting functions
+``` python
+# Import from modules, create and instance and compute simple metric
+from analysis import ThresholdDetector
+from analysis utils import nc2tif_ukcp18, apply_spatial_smoothing
+
+mydetection = ThresholdDetector('tasmax', 30.)
+thresh_metric = mydetection.detect(output_file = 'thresh_metric.nc')
+
+# Example 1: convert output NetCDF file to GeoTiff for GIS applications
+nc2tif_ukcp18('thresh_metric.nc')
+
+# Example 2: spatially smooth field, using the mean of NxN boxes
+metric_smoothed_3x3 = apply_spatial_smoothing(thresh_metric, box_size = 3)
+metric_smoothed_7x7 = apply_spatial_smoothing(thresh_metric, box_size = 7)
 ```
