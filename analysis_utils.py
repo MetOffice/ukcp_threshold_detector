@@ -10,7 +10,7 @@ Utility functions used by the Threshold Detector
    . Function make_spatial_mean: computes the weigthed spatial mean of spatial fields
    . Function gwl_ukcp18: computes a selected Global Warming Level (GWL)
    . Function nc2tif_ukcp18: converts netcdf files tif
-   . Function apply_spatial_smoothing: spatialy smooths the ThresholdDetector output metric
+   . Function apply_spatial_smoothing: spatially smooths the ThresholdDetector output metric
 
 '''
 
