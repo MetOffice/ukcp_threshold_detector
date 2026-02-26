@@ -677,8 +677,8 @@ class ThresholdDetector:
         # Select period and compute temporal mean
         varmean = var_counts.sel(year = slice(str(y1), str(y2))).mean(dim='year')
 
-        # If there is an 'ensemble_member' coord, then select it
-        if 'ensemble_member' in varmean.coords:
+        # If there is an 'ensemble_member' dim, then select it
+        if 'ensemble_member' in varmean.dims:
             varmean = varmean.sel(ensemble_member=self.ens)
 
         # Plot
