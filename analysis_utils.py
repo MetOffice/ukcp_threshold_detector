@@ -275,7 +275,7 @@ def nc2tif_ukcp18(ncfile):
     '''
 
     # Open dataset
-    dataset = xr.open_dataset(ncfile)
+    dataset = xr.open_dataset(ncfile, decode_timedelta=False)
     data = dataset[list(dataset.data_vars)[0]]
 
     # Select ensemble member if in dims
