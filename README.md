@@ -295,7 +295,27 @@ thresh_metric = mydetection.detect(output_file = 'thresh_metric.nc')
 # Example 1: convert output NetCDF file to GeoTiff for GIS applications
 nc2tif_ukcp18('thresh_metric.nc')
 
+
 # Example 2: spatially smooth field, using the mean of NxN boxes
 metric_smoothed_3x3 = apply_spatial_smoothing(thresh_metric, box_size = 3)
 metric_smoothed_7x7 = apply_spatial_smoothing(thresh_metric, box_size = 7)
 ```
+<br>
+<br>
+
+***
+
+### Licence
+
+The Threshold Detector is licensed under the [Open Government Licence 3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
+
+If you have any queries or feedback about this tool please contact Nikos Christidis at nikos.christidis@metoffice.gov.uk or the Met Office Service Desk at enquiries@metoffice.gov.uk.
+
+<br>
+<br>
+
+<h5 align="center">
+<img src="https://www.metoffice.gov.uk/binaries/content/gallery/metofficegovuk/images/about-us/website/mo_master_black_mono_for_light_backg_rbg.png" width="200" alt="Met Office"> <br>
+&copy; British Crown Copyright 2026, Met Office <br> <br>
+<a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/"><img alt="Open Government Licence logo" src="https://www.nationalarchives.gov.uk/images/infoman/ogl-symbol-41px-retina-black.png"></a> 
+</h5>
