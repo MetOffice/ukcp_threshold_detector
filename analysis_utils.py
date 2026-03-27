@@ -6,6 +6,10 @@
 Utility functions used by the Threshold Detector
 
    . Function make_color_cmap: creates a custom colour map
+   . Function find_years_to_analyse: examines the input files and selects years to analyse
+   . Function find_years_to_analyse_compound: as find_years_to_analyse but for compound events
+   . Function extract_year_data: extracts data for a specific year
+   . Function extract_year_data_compound: as extract_year_data but for compound events
    . Function cumulative_runlength: computes the run length of consecutive threshold crossings
    . Function make_spatial_mean: computes the weigthed spatial mean of spatial fields
    . Function gwl_ukcp18: computes a selected Global Warming Level (GWL)
@@ -14,6 +18,7 @@ Utility functions used by the Threshold Detector
 
 '''
 
+from pathlib import Path
 import numpy as np
 import xarray as xr
 import pyproj
@@ -49,6 +54,295 @@ def make_color_map(nval):
     my_whiteoranges = ListedColormap(newcolours)
 
     return my_whiteoranges
+
+
+def find_years_to_analyse(my_detection, select_years, years_from_dec):
+    '''
+    #######################################
+    # Function find_years_to_analyse      #
+    #######################################
+
+    Function find_years_to_analyse lists the input files, determines which 
+    years each file contains and selects years to analyse. It is used by
+    the detection methods of the ThresholdDetector.
+
+    Example:
+    file_years, select_years = find_years_to_analyse(my_detection, years_from_dec)
+ 
+    Input:
+    my_detection: an instance of the ThresholdDetector
+    select_years (optional): a list of years to analyse. This is useful
+                 for high-res data, where analysing smaller 
+                 segements (rather than all available years)
+                 helps avoid running out of memory
+    years_from_dec: if True, then years run from Dec to Nov
+                    instead of the default (Jan to Dec)
+
+    Outputs:
+    file_years: years in each input file
+    select_years: an updated list of the years to analyse
+    '''
+
+    # -------------------------------------------------------------------
+    # List files and determine which years each file contains
+    # -------------------------------------------------------------------
+    files = sorted(Path(my_detection.indata).glob("*.nc"))
+    if not files:
+        raise FileNotFoundError(f"No input files found in directory: {my_detection.indata}")
+    file_years = {}   # mapping: filename → (start_year, end_year)
+    for f in files:
+        data = xr.open_dataset(f, decode_times=True)
+        start_year = data.time.min().dt.year.item()
+        end_year   = data.time.max().dt.year.item()
+        file_years[f] = (start_year, end_year)
+        data.close()
+
+    # Determine the full year range
+    all_start_years = [yrs[0] for yrs in file_years.values()]
+    all_end_years   = [yrs[1] for yrs in file_years.values()]
+    first_year = min(all_start_years)
+    last_year  = max(all_end_years)
+
+    # Select years to analyse (default: all available years)
+    if select_years is not None:
+        if not isinstance(select_years, list):
+            raise TypeError("Invalid input: select_years must be a list")
+        if years_from_dec:
+            # Start from December of the previous year
+            select_years = [iyr-1 for iyr in select_years]
+    else:
+        if years_from_dec:
+            select_years = range(first_year, last_year)
+        else:
+            select_years = range(first_year, last_year+1)
+
+    return file_years, select_years
+
+
+def find_years_to_analyse_compound(my_detection, select_years, years_from_dec):
+    '''
+    ###########################################
+    # Function find_years_to_analyse_compound #
+    ###########################################
+
+    Function find_years_to_analyse_compound is the version of find_years_to_analyse
+    for compound events. For each variable, it determines which years each input file
+    contains and selects years to analyse. It is used by the detection methods of the
+    ThresholdDetectorCompound.
+
+    Example:
+    file_years1, file_years2, select_years = \
+    find_years_to_analyse_compound(my_detection, years_from_dec)
+ 
+    Input:
+    my_detection: an instance of the ThresholdDetectorCompound
+    select_years (optional): a list of years to analyse. This is useful
+                 for high-res data, where analysing smaller 
+                 segements (rather than all available years)
+                 helps avoid running out of memory
+    years_from_dec: if True, then years run from Dec to Nov
+                    instead of the default (Jan to Dec)
+
+    Outputs:
+    file_years1: years in each input file for variable 1
+    file_years2: years in each input file for variable 2
+    select_years: an updated list of the years to analyse
+    '''
+
+    # -------------------------------------------------------------------
+    # List files and determine which years each file contains
+    # -------------------------------------------------------------------
+    # VARIABLE 1
+    print("Processing data in " + my_detection.indata[0])
+    files = sorted(Path(my_detection.indata[0]).glob("*.nc"))
+    if not files:
+        raise FileNotFoundError(f"No input files found in directory: {my_detection.indata[0]}")
+    file_years1 = {}   # mapping: filename → (start_year, end_year)
+    for f in files:
+        data = xr.open_dataset(f, decode_times=True)
+        start_year = data.time.min().dt.year.item()
+        end_year   = data.time.max().dt.year.item()
+        file_years1[f] = (start_year, end_year)
+        data.close()
+
+    # Determine the full year range
+    all_start_years = [yrs[0] for yrs in file_years1.values()]
+    all_end_years   = [yrs[1] for yrs in file_years1.values()]
+    first_year = min(all_start_years)
+    last_year  = max(all_end_years)
+
+    # VARIABLE 2
+    print("Processing data in " + my_detection.indata[1])
+    files = sorted(Path(my_detection.indata[1]).glob("*.nc"))
+    if not files:
+        raise FileNotFoundError(f"No input files found in directory: {my_detection.indata[1]}")
+    file_years2 = {}   # mapping: filename → (start_year, end_year)
+    for f in files:
+        data = xr.open_dataset(f, decode_times=True)
+        start_year = data.time.min().dt.year.item()
+        end_year   = data.time.max().dt.year.item()
+        file_years2[f] = (start_year, end_year)
+        data.close()
+
+    # Determine the full year range
+    all_start_years = [yrs[0] for yrs in file_years2.values()]
+    all_end_years   = [yrs[1] for yrs in file_years2.values()]
+    first_year = max([first_year, min(all_start_years)])
+    last_year = min([last_year, max(all_end_years)])
+
+    # Select years to analyse (default: all available years)
+    if select_years is not None:
+        if not isinstance(select_years, list):
+            raise TypeError("Invalid input: select_years must be a list")
+        if years_from_dec:
+            # Start from December of the previous year
+            select_years = [iyr-1 for iyr in select_years]
+    else:
+        if years_from_dec:
+            select_years = range(first_year, last_year)
+        else:
+            select_years = range(first_year, last_year+1)
+
+    return file_years1, file_years2, select_years
+
+
+def extract_year_data(my_detection, year, file_years, years_from_dec):
+    '''
+    #######################################
+    # Function extract_year_data          #
+    #######################################
+
+    Function extract_year_data extracts the data corresponding to the
+    analysis variable for a specific year. It is used by the detection
+    methods of the ThresholdDetector.
+
+    Example:
+    year_data = extract_year_data(my_detection, year, file_years, years_from_dec)
+ 
+    Input:
+    my_detection: an instance of the ThresholdDetector
+    year: the year for which the data will be extracted
+    file_years: years in each input file (produced by find_years_to_analyse)
+    years_from_dec: if True, then years run from Dec to Nov
+                    instead of the default (Jan to Dec)
+
+    Output:
+    year_data: a DataArray with the data for the requested year
+    '''
+
+    # Identify files that contain the requested year
+    if years_from_dec:
+        relevant_files = [
+            f for f, (y0, y1) in file_years.items()
+            if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+    else:
+        relevant_files = [
+            f for f, (y0, y1) in file_years.items()
+            if y0 <= year <= y1 ]
+
+    # Load only the time slices for this year
+    parts = []
+    for f in relevant_files:
+        data = xr.open_dataset(f, decode_times=True)
+        if years_from_dec:
+            data_year = data[my_detection.var].sel(time =
+                ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+        else:
+            data_year = data[my_detection.var].where(data.time.dt.year == year, drop=True)
+        if data_year.sizes['time'] > 0:
+            parts.append(data_year)
+        data.close()
+
+    # Combine the parts
+    if not parts:
+        raise ValueError(f"Error in input parts: No data found for year {year}")
+    year_data = xr.concat(parts, dim="time")
+    return year_data
+
+
+def extract_year_data_compound(my_detection, year, file_years1, file_years2, years_from_dec):
+    '''
+    #######################################
+    # Function extract_year_data_compound #
+    #######################################
+    Function extract_data_compound is the version of extract_data for
+    compound events. It extracts the data corresponding to the
+    analysis variable for a specific year and for both variables. It 
+    is used by the detection methods of the ThresholdDetectorCompound.
+
+    Example:
+    year_data1, year_data2 = \
+    extract_year_data_compound(my_detection, year, file_years1, file_years2, years_from_dec)
+ 
+    Input:
+    my_detection: an instance of the ThresholdDetectorCompound
+    year: the year for which the data will be extracted
+    file_years1: years in each input file for var 1 (produced by find_years_to_analyse_compound)
+    file_years2: years in each input file for var 2 (produced by find_years_to_analyse_compound)
+    years_from_dec: if True, then years run from Dec to Nov
+                    instead of the default (Jan to Dec)
+
+    Output:
+    year_data1: a DataArray with the var1 data for the requested year
+    year_data2: a DataArray with the var2 data for the requested year
+    '''
+
+    # Identify files that contain this year
+    if years_from_dec:
+        relevant_files1 = [
+            f for f, (y0, y1) in file_years1.items()
+            if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+        relevant_files2 = [
+            f for f, (y0, y1) in file_years2.items()
+            if (y0 <= year <= y1) or (y0 <= year+1 <=y1)]
+    else:
+        relevant_files1 = [
+            f for f, (y0, y1) in file_years1.items()
+            if y0 <= year <= y1 ]
+        relevant_files2 = [
+            f for f, (y0, y1) in file_years2.items()
+            if y0 <= year <= y1 ]
+
+    # Load only the time slices for this year - Variable 1
+    parts = []
+    for f in relevant_files1:
+        data = xr.open_dataset(f, decode_times=True)
+        if years_from_dec:
+            data_year = data[my_detection.var[0]].sel(time =
+                ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+        else:
+            data_year = data[my_detection.var[0]].where(data.time.dt.year == year, drop=True)
+        if data_year.sizes['time'] > 0:
+            parts.append(data_year)
+        data.close()
+
+    # Combine the parts - Variable 1
+    if not parts:
+        raise ValueError(f"Error in input parts: No data found for year {year}")
+    year_data1 = xr.concat(parts, dim="time")
+
+    # Load only the time slices for this year - Variable 2
+    parts = []
+    for f in relevant_files2:
+        data = xr.open_dataset(f, decode_times=True)
+        if years_from_dec:
+            data_year = data[my_detection.var[1]].sel(time =
+                ((data.time.dt.year == year) & (data.time.dt.month == 12)) |
+                ((data.time.dt.year == year+1) & (data.time.dt.month < 12)))
+        else:
+            data_year = data[my_detection.var[1]].where(data.time.dt.year == year, drop=True)
+        if data_year.sizes['time'] > 0:
+            parts.append(data_year)
+        data.close()
+
+    # Combine the parts - Variable 2
+    if not parts:
+        raise ValueError(f"Error in input parts: No data found for year {year}")
+    year_data2 = xr.concat(parts, dim="time")
+
+    return year_data1, year_data2
 
 
 def cumulative_runlength(arr):
@@ -363,6 +657,7 @@ def nc2tif_ukcp18(ncfile):
                 long_name=data.attrs.get("long_name", ""),
                 units=data.attrs.get("units", ""),
                 standard_name=data.attrs.get("standard_name", ""))
+    dataset.close()
 
 
 def apply_spatial_smoothing(data, box_size=3, output_file = None):
