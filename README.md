@@ -48,10 +48,10 @@ This is the basic building block of the tool and the starting point of all compu
     - **method**: threshold crossing method
     - **indata**: directory where the input files (NetCDF - daily data) are stored
 
-The methods of *ThersholdDetector* that compute threshold-crossing metrics are:
+The methods of *ThresholdDetector* that compute threshold-crossing metrics are:
 - **Method detect.**
- This is the most basic threshold-crossing function that computes the number of days the threshold is crossed in each year. It takes an an input an instance of the ThresholdDetector and, optionally, the following parameters:
-  - **select_years**: a list of years to analyse. This is useful for high-resolution data, where analysing smaller segements helps avoid  memory limitations.
+ This is the most basic threshold-crossing function that computes the number of days the threshold is crossed in each year. It takes an input an instance of the ThresholdDetector and, optionally, the following parameters:
+  - **select_years**: a list of years to analyse. This is useful for high-resolution data, where analysing smaller segments helps avoid  memory limitations.
   - **select_months**: a list of months to analyse. If *None* (default) then annual exceedances are computed. This is a useful option if, for example, users want to calculate exceedances in a season.
   - **years_from_dec**: if set to *True*, then years run from Dec to Nov instead of the default (Jan to Dec).
   - **output_file**: name of a NetCDF file to save the output.
@@ -60,14 +60,14 @@ The methods of *ThersholdDetector* that compute threshold-crossing metrics are:
   This method computes the maximum spell length in each year, where spells are defined as consecutive days above (or below) the threshold. The method has the same input parameters as method *detect*.
 
 - **Method detect_spells.**
-   This method computes the total number of threshold-crossing spells in each year. Spells are again defined as consecutive days above (or below) the threshold. Spells of a minimumn length (*min_length*) may be specified.
+   This method computes the total number of threshold-crossing spells in each year. Spells are again defined as consecutive days above (or below) the threshold. Spells of a minimum length (*min_length*) may be specified.
    Also, spells may be considered separate only if there are at least X non-exceedance days (*decluster_days*) between them. In addition to the input parameters of method *detect*, this method also includes the following (optional) parameters:
   - **min_length:** if specified, only spells with at least *min_length* days are counted.
   - **decluster_days:** minimum number of days without a threshold crossing required between spells. If set to 1 (default), all spells are counted, even if only separated by 1 day.
 
-The two methods of *ThersholdDetector* for basic output visualisation are listed below. 
+The two methods of *ThresholdDetector* for basic output visualisation are listed below. 
 
-***Important note:*** the plotting methods are only to be applied to the UK region covered by UKCP or HadUK-Grid data and may not work correctly if the input fields have non-stardard co-ordinate names or grid specifications.
+***Important note:*** the plotting methods are only to be applied to the UK region covered by UKCP or HadUK-Grid data and may not work correctly if the input fields have non-standard co-ordinate names or grid specifications.
 
 - **Method plot_temporal_mean.**
 -   This method plots a map of the mean threshold-crossing metric over a period starting in year *y1* and ending in year *y2*. It takes as an input an instance of the *ThresholdDetector* as well as  the following:
@@ -89,8 +89,8 @@ The two methods of *ThersholdDetector* for basic output visualisation are listed
 This module contains supporting functions used during detection analyses. These may be called by methods of the *ThresholdDetector* or used independently to provide additional functionality, such as file format conversions. The available functions are:
 - **Function make_color_cmap**: a function that creates a custom colour map used for map plotting.
 - **Function cumulative_runlength**: a function that computes the run length of consecutive threshold exceedances along the time dimension .
-- **Function make_spatial_mean**: a function that computes the weigthed spatial mean of UKCP or HadUK-Grid fields for each time slice.
-- **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 esnemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
+- **Function make_spatial_mean**: a function that computes the weighted spatial mean of UKCP or HadUK-Grid fields for each time slice.
+- **Function gwl_ukcp18**: a function that takes as input the threshold metric created by the detector and returns it on a selected Global Warming Level (GWL). Note that this function is to be used only for UKCP18 ensemble members, as they are the only input for which the detector knows the time slices corresponding to different GWLs. The user must provide the ensemble member and GWL of interest (available levels: 1, 1.5, 2, 2.5, 3, and 4 degrees). An example is provided in Section 3.
 - **Function nc2tif_ukcp18**: a function that converts NetCDF output from the Threshold Detector to raster (GeoTIFF) format for GIS applications. It transfroms .nc files to .tif, assuming that the UKCP18 coordinate system was used. The code requires the spatial fields to be on the UKCP18 (or HadUK-Grid) coordinate system and the spatial coordinates to have standard names (e.g., for latitude either *projection_y_coordinate* or *grid_latitude*).
 - **Function apply_spatial_smoothing**: a function that spatially smoothes the metric created the *ThresholdDetector*. It replaces each grid-point value by the mean of the NxN grid boxes around it. Default box-size N is set to 3 (i.e. smoothing uses the mean of
     3x3=9 values around the grid-point).
@@ -148,7 +148,7 @@ This is the basic building block of the tool for *compound* events.
   - Class Inputs:
     - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*'
     - **threshold**: a list of the two threshold values
-    - **method** : a list of the two threshold crossing methods - can be '*above*' or '*below*' 
+    - **method**: a list of the two threshold crossing methods - can be '*above*' or '*below*' 
     - **ens** (optional): an integer indicating the ensemble member (default = 1)
     - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
   - Class Attributes:
@@ -275,9 +275,9 @@ mydetection.plot_spatial_mean(thresh_metric_1)
 
 - Other supporting functions
 ``` python
-# Import from modules, create and instance and compute simple metric
+# Import from modules, create an instance and compute simple metric
 from analysis import ThresholdDetector
-from analysis utils import nc2tif_ukcp18, apply_spatial_smoothing
+from analysis_utils import nc2tif_ukcp18, apply_spatial_smoothing
 
 mydetection = ThresholdDetector('tasmax', 30.)
 thresh_metric = mydetection.detect(output_file = 'thresh_metric.nc')
