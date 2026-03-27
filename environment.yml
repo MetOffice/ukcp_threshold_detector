@@ -1,0 +1,15 @@
+name: threshold-detector-env
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.12
+  - numpy
+  - xarray
+  - matplotlib
+  - pyproj
+  - cartopy
+  - rasterio
+  - pytest
+  
