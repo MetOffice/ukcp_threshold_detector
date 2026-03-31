@@ -552,7 +552,7 @@ class ThresholdDetector:
         return var_counts
 
 
-    def plot_temporal_mean(self, var_counts, y1, y2,
+    def plot_temporal_mean(self, var_counts, y1, y2, interactive = True,
                            set_label = 'Threshold Crossings', output_file = None):
         '''
         #############################
@@ -576,6 +576,7 @@ class ThresholdDetector:
            self
            var_counts: DataArray with threshold crossings (created by method detect)
            y1, y2: the first and last years of the selected period
+           interactive (optional): Enable interactive mode (default) 
            set_label (optional): a customised label for the plot
            output_file(optional): name of a png file to save the plot
 
@@ -595,7 +596,11 @@ class ThresholdDetector:
             varmean = varmean.sel(ensemble_member=self.ens)
 
         # Plot
-        plt.ion()
+        if interactive:
+            plt.ion()
+        else:
+            plt.ioff()
+
         mycmap = make_color_map(361)
         plt.figure()
         ax = plt.subplot2grid((1,1), (0,0), projection=ccrs.epsg(27700))
@@ -621,8 +626,11 @@ class ThresholdDetector:
         if output_file is not None:
             plt.savefig(output_file)
 
+        if not interactive:
+            plt.show()
 
-    def plot_spatial_mean(self, var_counts, mylon = None, mylat = None,
+
+    def plot_spatial_mean(self, var_counts, mylon = None, mylat = None, interactive = True,
                           set_label = 'Threshold Crossings', output_file = None):
         '''
         #############################
@@ -647,6 +655,7 @@ class ThresholdDetector:
            var_counts: DataArray with threshold crossings (created by method detect)
            mylon, mylat (optional): 2-dimensional lists with the coordinates of an area to extract.
                                     If not given, the mean is computed over the entire area
+           interactive (optional): Enable interactive mode (default) 
            set_label (optional): a customised label for the plot
            output_file(optional): name of a png file to save the plot
 
@@ -701,7 +710,11 @@ class ThresholdDetector:
             varmean = make_spatial_mean(var_counts_myarea)
 
         # Plot
-        plt.ion()
+        if interactive:
+            plt.ion()
+        else:
+            plt.ioff()
+
         plt.figure()
         ax = plt.subplot2grid((1,1), (0,0))
         ax.plot(varmean.year, varmean, color='black')
@@ -712,3 +725,6 @@ class ThresholdDetector:
         # Save plot if output_file is given
         if output_file is not None:
             plt.savefig(output_file)
+
+        if not interactive:
+            plt.show()

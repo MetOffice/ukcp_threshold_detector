@@ -76,6 +76,7 @@ The two methods of *ThresholdDetector* for basic output visualisation are listed
   
   - **var_counts**: a DataArray with the threshold-crossing metric (created by one of the detect methods)
   - **y1, y2**: the first and last years of the selected period
+  - **interactive** (optional): an option to enable interactive mode (default). Setting to *False* ensures compatibility with environments such as VSCode
   - **set_label** (optional): a customised label for the plot
   - **output_file**(optional): name of a png file to save the plot
 
@@ -84,6 +85,7 @@ The two methods of *ThresholdDetector* for basic output visualisation are listed
   
   - **var_counts**: a DataArray with the threshold-crossing metric (created by one of the detect methods)
   - **mylon, mylat** (optional): 2-dimensional lists with the coordinates of an area to extract. If not given, the mean is computed over the entire area
+  - **interactive** (optional): an option to enable interactive mode (default). Setting to *False* ensures compatibility with environments such as VSCode
   - **set_label** (optional): a customised label for the plot
   - **output_file** (optional): name of a png file to save the plot
 
