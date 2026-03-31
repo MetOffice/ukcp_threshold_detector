@@ -407,7 +407,7 @@ def make_spatial_mean(data):
              data.projection_y_coordinate
           or (e.g. 2.2 km UKCP18 data):
              data.grid_longitude
-             data.grid_longitude
+             data.grid_latitude
 
     Output:
     fldm: array with weigthed mean values
