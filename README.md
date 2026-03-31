@@ -81,7 +81,7 @@ The two methods of *ThresholdDetector* for basic output visualisation are listed
   - **output_file**(optional): name of a png file to save the plot
 
 - **Method plot_spatial_mean.**
-  This method plots the timeseries of the annual mean threshold-crossing metric over an area. It takes as an input an instance of the *ThresholdDetector* as well as  the following:
+-   This method plots the timeseries of the annual mean threshold-crossing metric over an area. It takes as an input an instance of the *ThresholdDetector* as well as  the following:
   
   - **var_counts**: a DataArray with the threshold-crossing metric (created by one of the detect methods)
   - **mylon, mylat** (optional): 2-dimensional lists with the coordinates of an area to extract. If not given, the mean is computed over the entire area
