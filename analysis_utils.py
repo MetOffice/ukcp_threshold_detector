@@ -25,7 +25,7 @@ import pyproj
 import rasterio
 from rasterio.transform import from_origin
 import cartopy.crs as ccrs
-from matplotlib import cm
+import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
 
@@ -48,7 +48,7 @@ def make_color_map(nval):
 
     '''
 
-    corng = cm.get_cmap('Oranges',nval)
+    corng = plt.get_cmap('Oranges',nval)
     newcolours = corng(np.linspace(0,1,nval))
     newcolours[0] = [1, 1, 1, 1]  # RGBA for white
     my_whiteoranges = ListedColormap(newcolours)
