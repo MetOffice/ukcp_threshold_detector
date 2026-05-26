@@ -18,6 +18,14 @@ Additional functionality also allows users to apply the detector to **HadUK-Grid
 
 The tool returns **gridded fields of threshold crossings** that can be saved in the same **NetCDF format** as the input data and can also produce **simple visual outputs**, such as maps of the threshold-crossing metric or time series of its area-mean values. 
 
+To **install** the threshold detector:
+``` python
+git clone https://github.com/MetOffice/ukcp_threshold_detector
+cd ukcp_threshold_detector
+conda env create -f environment.yml
+conda activate threshold-detector-env
+``` 
+
 > ##### Spatial resolution of the input data
 > The tool can analyse datasets with different spatial resolutions. The 12 km resolution allows fast computations, whereas higher-resolution datasets (e.g. 2.2 km or 1 km) increase the computational cost. Users working with high-resolution datasets may require additional computing resources and may wish to analyse the data in segments - for example, processing one decade at a time rather than all available years in a single job. The tool supports this approach by allowing users to select and analyse subsets of the available years.
 
