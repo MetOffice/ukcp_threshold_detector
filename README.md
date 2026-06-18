@@ -1,5 +1,7 @@
 ## ukcp_threshold_detector
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20747366.svg)](https://doi.org/10.5281/zenodo.20747366)
+
 - [1. Introduction](#1-introduction)
 - [2. Code Structure](#2-code-structure)
 - [3. Compound Events](#3-compound-events)
@@ -17,6 +19,8 @@ Additional functionality also allows users to apply the detector to **HadUK-Grid
 - parameter **obs = *True*** (default is *False*)
 
 The tool returns **gridded fields of threshold crossings** that can be saved in the same **NetCDF format** as the input data and can also produce **simple visual outputs**, such as maps of the threshold-crossing metric or time series of its area-mean values. 
+
+A detailed user guide can be downloaded from: https://doi.org/10.5281/zenodo.20747366
 
 To **install** the threshold detector:
 ``` python
