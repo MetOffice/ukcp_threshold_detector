@@ -106,7 +106,7 @@ class ThresholdDetectorCompound:
         self.threshold = threshold
         self.method = method
         self.ens = ens
-        if obs and var == 'pr':
+        if obs and 'pr' in var:
             self.var = ['rainfall' if v == 'pr' else v for v in var]
         else:
             self.var = var
