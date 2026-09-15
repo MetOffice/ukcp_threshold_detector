@@ -10,7 +10,7 @@
 ### 1. Introduction
 Repository *ukcp_threshold_detector* contains Python code for the HCCP project "Creating a UKCP threshold detector to address stakeholder needs for decision-relevant climate information". The project delivers a **threshold detector capability** for the UK from the **UK Climate Projections (UKCP)**.
 
-The code processes **UKCP18 daily gridded data** (default resolution 12 km, but higher resolution datasets may also be used) to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, and *prsn*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
+The code processes **UKCP18 daily gridded data** (default resolution 12 km, but higher resolution datasets may also be used) to compute threshold crossings for the variables *tasmax*, *tasmin*, *tas*, *pr*, *uas*, *vas*, *sfcWind*, *hurs*, *huss*, *prsn*, and *wsgmax10m*. It can analyse the available **16 UKCP18 ensemble members** covering the period **1981–2079**, which follow a **high-emissions pathway (RCP8.5)** for future years. Users can specify 
 - the **variable** of interest,
 - the **ensemble member**, and
 - the **threshold value** and **detection method** (*above* or *below*).
@@ -48,7 +48,7 @@ This module contains the main code of the tool and defines the class *ThresholdD
 This is the basic building block of the tool and the starting point of all computations, which are performed using a set of methods defined within the class.
 
   - Class Inputs:
-    - **var**: input variable - can be one of '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*'
+    - **var**: input variable - can be one of '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*', '*wsgmax10m*'
     - **threshold**: threshold value
     - **ens** (optional): an integer indicating the ensemble member (default = 1)
     - **obs**(optional): True if analysing HadUK-Grid observations (default = False)
@@ -147,6 +147,7 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 >    'hurs_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/hurs/01/',
 >    'huss_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/huss/01/',
 >    'prsn_01'    : '/data/users/username/ukcp18/uk_12km_rcp85/prsn/01/',
+>    'wsgmax10m_01' : '/data/users/username/ukcp18/uk_12km_rcp85/wsgmax10m/01/',
 >
 >    'tasmax_04'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmax/04/',
 >    'tasmin_04'  : '/data/users/username/ukcp18/uk_12km_rcp85/tasmin/04/',
@@ -158,6 +159,7 @@ This script defines the file paths for UKCP18 daily data for each ensemble membe
 >    'hurs_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/hurs/04/',
 >    'huss_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/huss/04/',
 >    'prsn_04'    : '/data/users/username/ukcp18/uk_12km_rcp85/prsn/04/',
+>    'wsgmax10m_04' : '/data/users/username/ukcp18/uk_12km_rcp85/wsgmax10m/04/',
 >}
 >```
 >In the example above, the user provides the paths for three variables from HadUK-Grid and ten variables for UKCP18 ensemble members 1 and 4. The file can be edited to add or remove variables and/or ensemble members as required. The paths are mapped to names that follow the naming convention *var_X*, where *var* denotes the variable name and *X* is either the two-digit ensemble member ID for UKCP18 data or *obs* for HadUK-Grid data.
@@ -170,7 +172,7 @@ In addition to univariate analyses (threshold crossings of a single variable), t
 This is the basic building block of the tool for *compound* events.
 
   - Class Inputs:
-    - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*'
+    - **var**: input variables - a list of the two variables that define the compound event -  acceptable variables are: '*tasmax*', '*tasmin*', '*tas*', '*pr*', '*uas*', '*vas*', '*sfcWind*', '*hurs*', '*huss*', '*prsn*', '*wsgmax10m*'
     - **threshold**: a list of the two threshold values
     - **method**: a list of the two threshold crossing methods - can be '*above*' or '*below*' 
     - **ens** (optional): an integer indicating the ensemble member (default = 1)

@@ -60,8 +60,8 @@ class ThresholdDetectorCompound:
     Inputs:
        var: input variables - a list of the two variables that define the compound
                               event. Acceptable variables are:
-                              'tasmax', 'tasmin', 'tas', 'pr', 'uas',
-                              'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+                              'tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas'
+                              'sfcWind', 'hurs', 'huss', 'prsn', 'wsgmax10m'
        threshold: a list of the two threshold values
        method : a list of the two threshold crossing method - can be 'above' or 'below' 
        ens (optional): an integer indicating the ensemble member (default = 1)
@@ -95,7 +95,7 @@ class ThresholdDetectorCompound:
 
         # Check in input variable is correct
         if any(v not in ['tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas', 'sfcWind',
-                         'hurs', 'huss', 'prsn'] for v in var):
+                         'hurs', 'huss', 'prsn', 'wsgmax10m'] for v in var):
             raise ValueError(f'Invalid name for some input variable(s): {var}.')
 
         # Check if input method is correct

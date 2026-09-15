@@ -47,8 +47,8 @@ class ThresholdDetector:
            my_detection = ThresholdDetector(var, threshold, ens=ens, obs=False, method=method)
 
     Inputs:
-       var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr', 'uas',
-                                           'vas', 'sfcWind', 'hurs', 'huss', 'prsn'
+       var: input variable - can be one of 'tasmax', 'tasmin', 'tas', 'pr', 'uas', ' vas',
+                                           'sfcWind', 'hurs', 'huss', 'prsn', 'wsgmax10m
        threshold: threshold value
        ens (optional): an integer indicating the ensemble member (default = 1)
        obs(optional): True if analysing HadUK-Grid observations (default = False)
@@ -77,7 +77,7 @@ class ThresholdDetector:
 
         # Check in input variable is correct
         if var not in ['tasmax', 'tasmin', 'tas', 'pr', 'uas', 'vas',
-                       'sfcWind', 'hurs', 'huss', 'prsn']:
+                       'sfcWind', 'hurs', 'huss', 'prsn', 'wsgmax10m']:
             raise ValueError(f'Invalid variable name: {var}.')
 
         # Check if input method is correct

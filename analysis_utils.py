@@ -257,7 +257,7 @@ def extract_year_data(my_detection, year, file_years, years_from_dec):
     # Combine the parts
     if not parts:
         raise ValueError(f"Error in input parts: No data found for year {year}")
-    year_data = xr.concat(parts, dim="time")
+    year_data = xr.concat(parts, dim="time", coords="different", compat="equals")
     return year_data
 
 
@@ -321,7 +321,7 @@ def extract_year_data_compound(my_detection, year, file_years1, file_years2, yea
     # Combine the parts - Variable 1
     if not parts:
         raise ValueError(f"Error in input parts: No data found for year {year}")
-    year_data1 = xr.concat(parts, dim="time")
+    year_data1 = xr.concat(parts, dim="time", coords="different", compat="equals")
 
     # Load only the time slices for this year - Variable 2
     parts = []
@@ -340,7 +340,7 @@ def extract_year_data_compound(my_detection, year, file_years1, file_years2, yea
     # Combine the parts - Variable 2
     if not parts:
         raise ValueError(f"Error in input parts: No data found for year {year}")
-    year_data2 = xr.concat(parts, dim="time")
+    year_data2 = xr.concat(parts, dim="time", coords="different", compat="equals")
 
     return year_data1, year_data2
 
